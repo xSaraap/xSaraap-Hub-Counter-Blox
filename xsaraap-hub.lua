@@ -1,4 +1,4 @@
--- xSaraap Hub - PROPER TEAM DETECTION & OUTLINE ESP
+-- xSaraap Hub - FIXED VISIBILITY & SMOOTHNESS
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -23,17 +23,14 @@ warn("xSaraap Hub loaded in: " .. gameName)
 local function isEnemy(player)
     if player == LocalPlayer then return false end
     
-    -- Method 1: Team check (works for most FPS games)
     if LocalPlayer.Team and player.Team then
         return LocalPlayer.Team ~= player.Team
     end
     
-    -- Method 2: Check if player is in different team colors
     if LocalPlayer.TeamColor and player.TeamColor then
         return LocalPlayer.TeamColor ~= player.TeamColor
     end
     
-    -- Method 3: For games without teams, treat everyone as enemy except yourself
     return true
 end
 
@@ -67,6 +64,26 @@ local VisibilityCheck = false
 local Smoothness = 0.1
 local StreamSafe = true
 local ScreenshotProtection = true
+
+-- FIXED: Working Visibility Check Function
+local function isVisible(targetPart)
+    if not VisibilityCheck then return true end
+    local localChar = getCharacter(LocalPlayer)
+    if not localChar then return false end
+    
+    local camera = Workspace.CurrentCamera
+    local origin = camera.CFrame.Position
+    local target = targetPart.Position
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {localChar, targetPart.Parent}
+    raycastParams.IgnoreWater = true
+    
+    local raycastResult = Workspace:Raycast(origin, target - origin, raycastParams)
+    
+    return raycastResult == nil
+end
 
 -- Create GUI
 local ScreenGui = Instance.new("ScreenGui")
@@ -190,6 +207,37 @@ VisibilityToggle.TextSize = 12
 VisibilityToggle.Font = Enum.Font.Gotham
 VisibilityToggle.Parent = AimbotFrame
 
+-- FIXED: Added back Smoothness Slider
+local SmoothnessFrame = Instance.new("Frame")
+SmoothnessFrame.Size = UDim2.new(0.9, 0, 0, 50)
+SmoothnessFrame.Position = UDim2.new(0.05, 0, 0.75, 0)
+SmoothnessFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+SmoothnessFrame.BorderSizePixel = 0
+SmoothnessFrame.Parent = AimbotFrame
+
+local SmoothnessLabel = Instance.new("TextLabel")
+SmoothnessLabel.Size = UDim2.new(1, 0, 0, 20)
+SmoothnessLabel.BackgroundTransparency = 1
+SmoothnessLabel.Text = "Smoothness: 10%"
+SmoothnessLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+SmoothnessLabel.TextSize = 12
+SmoothnessLabel.Font = Enum.Font.Gotham
+SmoothnessLabel.Parent = SmoothnessFrame
+
+local SmoothnessSlider = Instance.new("Frame")
+SmoothnessSlider.Size = UDim2.new(0.9, 0, 0, 10)
+SmoothnessSlider.Position = UDim2.new(0.05, 0, 0.6, 0)
+SmoothnessSlider.BackgroundColor3 = Color3.fromRGB(80, 80, 85)
+SmoothnessSlider.BorderSizePixel = 0
+SmoothnessSlider.Parent = SmoothnessFrame
+
+local SmoothnessButton = Instance.new("TextButton")
+SmoothnessButton.Size = UDim2.new(0, 15, 0, 15)
+SmoothnessButton.Position = UDim2.new(Smoothness, -7, 0, -2)
+SmoothnessButton.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
+SmoothnessButton.Text = ""
+SmoothnessButton.Parent = SmoothnessSlider
+
 -- Visuals Tab
 local VisualsFrame = TabFrames["Visuals"]
 
@@ -226,8 +274,9 @@ local AimbotActive = false
 local CurrentTarget = nil
 local GUIHidden = false
 local ESPHighlights = {}
+local smoothDragging = false
 
--- FIXED: ESP Function with PROPER team detection and OUTLINE ONLY
+-- ESP Function with proper team detection and outline only
 local function createESP(player)
     if player == LocalPlayer then return end
     
@@ -235,7 +284,6 @@ local function createESP(player)
         local character = getCharacter(player)
         if not character then return end
         
-        -- FIXED: Check if enemy BEFORE creating ESP
         if not isEnemy(player) then 
             if ESPHighlights[player] then
                 ESPHighlights[player]:Destroy()
@@ -252,9 +300,9 @@ local function createESP(player)
 
         local highlight = Instance.new("Highlight")
         highlight.Name = "ESP_" .. player.Name
-        highlight.FillColor = Color3.new(0, 0, 0)  -- Black fill (invisible)
-        highlight.OutlineColor = Color3.new(1, 1, 1) -- White outline
-        highlight.FillTransparency = 1  -- FIXED: Completely transparent fill (OUTLINE ONLY)
+        highlight.FillColor = Color3.new(0, 0, 0)
+        highlight.OutlineColor = Color3.new(1, 1, 1)
+        highlight.FillTransparency = 1
         highlight.OutlineTransparency = 0
         highlight.Enabled = true
         
@@ -263,7 +311,6 @@ local function createESP(player)
         
         ESPHighlights[player] = highlight
         
-        -- Track respawn
         local humanoid = character:FindFirstChild("Humanoid")
         if humanoid then
             humanoid.Died:Connect(function()
@@ -303,7 +350,7 @@ local function updateESP()
     end
 end
 
--- FIXED: Aimbot Functions with PROPER team detection
+-- FIXED: Aimbot Functions with WORKING Visibility Check
 local function getClosestEnemy()
     local closestPlayer = nil
     local closestDistance = math.huge
@@ -315,15 +362,20 @@ local function getClosestEnemy()
     if not localHead then return nil end
     
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and isEnemy(player) then  -- FIXED: Only target enemies
+        if player ~= LocalPlayer and isEnemy(player) then
             local character = getCharacter(player)
             local aimPart = getBodyPart(character, AimPart)
             
             if character and aimPart then
-                local distance = (localHead.Position - aimPart.Position).Magnitude
-                if distance < closestDistance then
-                    closestDistance = distance
-                    closestPlayer = player
+                -- FIXED: Actually use the visibility check
+                if VisibilityCheck and not isVisible(aimPart) then
+                    -- Skip if not visible and visibility check is enabled
+                else
+                    local distance = (localHead.Position - aimPart.Position).Magnitude
+                    if distance < closestDistance then
+                        closestDistance = distance
+                        closestPlayer = player
+                    end
                 end
             end
         end
@@ -365,6 +417,12 @@ ESPToggle.MouseButton1Click:Connect(function()
     updateESP()
 end)
 
+VisibilityToggle.MouseButton1Click:Connect(function()
+    VisibilityCheck = not VisibilityCheck
+    VisibilityToggle.Text = "Visibility Check: " .. (VisibilityCheck and "ON" or "OFF")
+    VisibilityToggle.BackgroundColor3 = VisibilityCheck and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
+end)
+
 HideGUIToggle.MouseButton1Click:Connect(function()
     toggleGUI()
 end)
@@ -379,11 +437,47 @@ AimPartButton.MouseButton1Click:Connect(function()
     end
 end)
 
+-- FIXED: Smoothness Slider Functionality
+SmoothnessButton.MouseButton1Down:Connect(function()
+    smoothDragging = true
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        smoothDragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        if smoothDragging then
+            local xPos = math.clamp(input.Position.X - SmoothnessSlider.AbsolutePosition.X, 0, SmoothnessSlider.AbsoluteSize.X)
+            local ratio = xPos / SmoothnessSlider.AbsoluteSize.X
+            Smoothness = math.clamp(ratio, 0.05, 0.9)  -- 5% to 90% smoothness
+            
+            SmoothnessButton.Position = UDim2.new(ratio, -7, 0, -2)
+            SmoothnessLabel.Text = "Smoothness: " .. math.floor(Smoothness * 100) .. "%"
+        end
+    end
+end)
+
 -- Input handling
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    -- Delete key toggle
+    if KeyListening then
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            AimbotKey = input.KeyCode
+            KeyBindButton.Text = "Aim Key: " .. tostring(input.KeyCode):gsub("Enum.KeyCode.", "")
+        else
+            AimbotKey = input.UserInputType
+            KeyBindButton.Text = "Aim Key: " .. tostring(input.UserInputType):gsub("Enum.UserInputType.", "")
+        end
+        KeyBindButton.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
+        KeyListening = false
+        return
+    end
+    
     if input.KeyCode == ToggleKey then
         toggleGUI()
     end
@@ -435,4 +529,4 @@ Players.PlayerRemoving:Connect(function(player)
     removeESP(player)
 end)
 
-warn("xSaraap Hub - PROPER TEAM DETECTION & OUTLINE ESP loaded successfully!")
+warn("xSaraap Hub - FIXED VISIBILITY & SMOOTHNESS loaded successfully!")
