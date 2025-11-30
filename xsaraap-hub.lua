@@ -51,7 +51,7 @@ local function makeRealStreamproof(gui)
     end
 end
 
--- INSTANT ESP System - No delays
+-- INSTANT ESP System - No delays, White Outline Only
 local function createInstantESP(player)
     if player == LocalPlayer then return end
     
@@ -79,10 +79,12 @@ local function createInstantESP(player)
 
         local highlight = Instance.new("Highlight")
         highlight.Name = "ESP_" .. player.Name
-        highlight.FillColor = Color3.new(0, 0, 0)
-        highlight.OutlineColor = Color3.new(1, 1, 1)
-        highlight.FillTransparency = 1
-        highlight.OutlineTransparency = 0
+        
+        -- WHITE OUTLINE ONLY - No fill color
+        highlight.FillColor = Color3.new(1, 1, 1)  -- White
+        highlight.OutlineColor = Color3.new(1, 1, 1)  -- White
+        highlight.FillTransparency = 1  -- Completely transparent fill
+        highlight.OutlineTransparency = 0  -- Solid white outline
         highlight.Enabled = true
         highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
         
@@ -92,10 +94,19 @@ local function createInstantESP(player)
         ESPHighlights[player] = highlight
         
         -- INSTANT: Track death and respawn immediately
-        character.Humanoid.Died:Connect(function()
+        local function onCharacterDied()
             if ESPHighlights[player] then
                 ESPHighlights[player]:Destroy()
                 ESPHighlights[player] = nil
+            end
+        end
+        
+        character.Humanoid.Died:Connect(onCharacterDied)
+        
+        -- Also track when health changes
+        character.Humanoid.HealthChanged:Connect(function(health)
+            if health <= 0 then
+                onCharacterDied()
             end
         end)
     end
@@ -107,7 +118,8 @@ local function createInstantESP(player)
     
     -- INSTANT: No wait time on character added
     player.CharacterAdded:Connect(function(character)
-        setupESP() -- No wait, instant ESP
+        wait(0.5) -- Small delay to allow character to fully load
+        setupESP()
     end)
 end
 
@@ -620,6 +632,19 @@ end)
 
 LocalPlayer:GetPropertyChangedSignal("Team"):Connect(function()
     updateESP()
+end)
+
+-- ESP Update Loop to handle respawns and character changes
+RunService.Heartbeat:Connect(function()
+    if ESPEnabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and isEnemy(player) then
+                if not ESPHighlights[player] and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+                    createInstantESP(player)
+                end
+            end
+        end
+    end
 end)
 
 warn("xSaraap Hub - INSTANT ESP & STREAMPROOF loaded successfully!")
