@@ -53,7 +53,7 @@ end
 
 -- Create GUI
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "xSaraapHub"
+ScreenGui.Name = "SFPS Hub"
 ScreenGui.Parent = game:GetService("CoreGui")
 
 -- Main Container
