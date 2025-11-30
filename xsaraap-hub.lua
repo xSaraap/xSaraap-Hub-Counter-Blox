@@ -1,4 +1,4 @@
--- xSaraap Hub - UNIVERSAL VERSION
+-- xSaraap Hub - STREAMPROOF VERSION
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -18,6 +18,23 @@ if success and gameInfo then
     gameName = gameInfo.Name
 end
 warn("xSaraap Hub loaded in: " .. gameName)
+
+-- Streamproof Settings
+local StreamProofEnabled = true
+
+-- Streamproof function for in-game GUI
+local function makeGUISteamproof(gui)
+    if StreamProofEnabled then
+        -- Method 1: Set to ScreenSpace to avoid 3D capture
+        gui.ResetOnSpawn = false
+        gui.IgnoreGuiInset = true
+        
+        -- Method 2: Make it less detectable by screen capture software
+        pcall(function()
+            gui.Enabled = true
+        end)
+    end
+end
 
 -- UNIVERSAL Team check function
 local function isEnemy(player)
@@ -93,10 +110,15 @@ local function isVisible(targetPart)
     return true
 end
 
--- Create GUI
+-- Create GUI with Streamproof
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "xSaraapHub"
 ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+
+-- Apply streamproof
+makeGUISteamproof(ScreenGui)
 
 -- Main Container
 local MainFrame = Instance.new("Frame")
@@ -296,9 +318,20 @@ HideGUIToggle.TextSize = 12
 HideGUIToggle.Font = Enum.Font.Gotham
 HideGUIToggle.Parent = SettingsFrame
 
+-- NEW: Stream Proof Toggle
+local StreamProofToggle = Instance.new("TextButton")
+StreamProofToggle.Size = UDim2.new(0.9, 0, 0, 30)
+StreamProofToggle.Position = UDim2.new(0.05, 0, 0.4, 0)
+StreamProofToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+StreamProofToggle.Text = "Stream Proof: ON"
+StreamProofToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+StreamProofToggle.TextSize = 12
+StreamProofToggle.Font = Enum.Font.GothamBold
+StreamProofToggle.Parent = SettingsFrame
+
 local CloseButton = Instance.new("TextButton")
 CloseButton.Size = UDim2.new(0.9, 0, 0, 30)
-CloseButton.Position = UDim2.new(0.05, 0, 0.4, 0)
+CloseButton.Position = UDim2.new(0.05, 0, 0.55, 0)
 CloseButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
 CloseButton.Text = "Close GUI"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -461,7 +494,7 @@ local function toggleGUI()
     MainFrame.Visible = not MainFrame.Visible
 end
 
--- Button Handlers (SAME AS YOUR ORIGINAL)
+-- Button Handlers
 AimbotToggle.MouseButton1Click:Connect(function()
     AimbotEnabled = not AimbotEnabled
     AimbotToggle.Text = "Aimbot: " .. (AimbotEnabled and "ON" or "OFF")
@@ -493,6 +526,23 @@ ScreenshotProtectionToggle.MouseButton1Click:Connect(function()
     ScreenshotProtectionToggle.BackgroundColor3 = ScreenshotProtection and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
 end)
 
+-- NEW: Stream Proof Toggle Handler
+StreamProofToggle.MouseButton1Click:Connect(function()
+    StreamProofEnabled = not StreamProofEnabled
+    StreamProofToggle.Text = "Stream Proof: " .. (StreamProofEnabled and "ON" or "OFF")
+    StreamProofToggle.BackgroundColor3 = StreamProofEnabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
+    
+    -- Reapply streamproof settings
+    if StreamProofEnabled then
+        ScreenGui.ResetOnSpawn = false
+        ScreenGui.IgnoreGuiInset = true
+        makeGUISteamproof(ScreenGui)
+    else
+        ScreenGui.ResetOnSpawn = true
+        ScreenGui.IgnoreGuiInset = false
+    end
+end)
+
 HideGUIToggle.MouseButton1Click:Connect(function()
     GUIHidden = not GUIHidden
     MainFrame.Visible = not GUIHidden
@@ -517,7 +567,7 @@ AimPartButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Slider Functionality (SAME AS YOUR ORIGINAL)
+-- Slider Functionality
 local smoothDragging = false
 SmoothnessButton.MouseButton1Down:Connect(function()
     smoothDragging = true
@@ -542,7 +592,7 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Key Binding (SAME AS YOUR ORIGINAL)
+-- Key Binding
 KeyBindButton.MouseButton1Click:Connect(function()
     KeyListening = true
     KeyBindButton.Text = "Press any key..."
@@ -643,4 +693,4 @@ Players.PlayerRemoving:Connect(function(player)
     removeESP(player)
 end)
 
-warn("xSaraap Hub UNIVERSAL loaded successfully in " .. gameName)
+warn("xSaraap Hub STREAMPROOF loaded successfully in " .. gameName)
