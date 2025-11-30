@@ -1,4 +1,4 @@
--- xSaraap Hub - INSTANT ESP & WORKING CONTROLS
+-- xSaraap Hub - UNIVERSAL VERSION
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -19,22 +19,25 @@ if success and gameInfo then
 end
 warn("xSaraap Hub loaded in: " .. gameName)
 
--- Team Check Function
+-- UNIVERSAL Team check function
 local function isEnemy(player)
     if player == LocalPlayer then return false end
     
+    -- Method 1: Team check (works for most FPS games)
     if LocalPlayer.Team and player.Team then
         return LocalPlayer.Team ~= player.Team
     end
     
+    -- Method 2: Check if player is in different team colors
     if LocalPlayer.TeamColor and player.TeamColor then
         return LocalPlayer.TeamColor ~= player.TeamColor
     end
     
+    -- Method 3: For games without teams, treat everyone as enemy except yourself
     return true
 end
 
--- Safe Character Check
+-- UNIVERSAL Character check
 local function getCharacter(player)
     local character = player.Character
     if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
@@ -43,11 +46,12 @@ local function getCharacter(player)
     return nil
 end
 
--- Safe Body Part Check
+-- UNIVERSAL Body part check
 local function getBodyPart(character, partName)
     if character and character:FindFirstChild(partName) then
         return character[partName]
     end
+    -- Fallback to HumanoidRootPart if preferred part doesn't exist
     if character and character:FindFirstChild("HumanoidRootPart") then
         return character.HumanoidRootPart
     end
@@ -60,12 +64,12 @@ local AimbotEnabled = false
 local AimbotKey = Enum.UserInputType.MouseButton2
 local ToggleKey = Enum.KeyCode.Delete
 local AimPart = "Head"
-local VisibilityCheck = false
-local Smoothness = 0.1
+local VisibilityCheck = true
+local Smoothness = 0.5
 local StreamSafe = true
 local ScreenshotProtection = true
 
--- Visibility Check Function
+-- UNIVERSAL Visibility check function
 local function isVisible(targetPart)
     if not VisibilityCheck then return true end
     local localChar = getCharacter(LocalPlayer)
@@ -82,7 +86,11 @@ local function isVisible(targetPart)
     
     local raycastResult = Workspace:Raycast(origin, target - origin, raycastParams)
     
-    return raycastResult == nil
+    if raycastResult then
+        return false
+    end
+    
+    return true
 end
 
 -- Create GUI
@@ -90,6 +98,7 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "xSaraapHub"
 ScreenGui.Parent = game:GetService("CoreGui")
 
+-- Main Container
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 400, 0, 450)
 MainFrame.Position = UDim2.new(0.5, -200, 0.5, -225)
@@ -98,6 +107,7 @@ MainFrame.BorderSizePixel = 0
 MainFrame.Visible = true
 MainFrame.Parent = ScreenGui
 
+-- Title Bar
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 30)
 TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
@@ -109,7 +119,7 @@ Title.Size = UDim2.new(1, 0, 1, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "xSaraap Hub - " .. gameName
 Title.TextColor3 = Color3.fromRGB(220, 220, 220)
-Title.TextSize = 14
+Title.TextSize = 16
 Title.Font = Enum.Font.GothamBold
 Title.Parent = TitleBar
 
@@ -125,6 +135,7 @@ TabContainer.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
 TabContainer.BorderSizePixel = 0
 TabContainer.Parent = MainFrame
 
+-- Content Area
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Size = UDim2.new(1, -100, 1, -30)
 ContentFrame.Position = UDim2.new(0, 100, 0, 30)
@@ -132,6 +143,7 @@ ContentFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 ContentFrame.BorderSizePixel = 0
 ContentFrame.Parent = MainFrame
 
+-- Create Tabs
 for i, tabName in pairs(Tabs) do
     local TabButton = Instance.new("TextButton")
     TabButton.Size = UDim2.new(1, 0, 0, 40)
@@ -164,7 +176,7 @@ for i, tabName in pairs(Tabs) do
     end)
 end
 
--- Aimbot Tab
+-- Aimbot Tab Content
 local AimbotFrame = TabFrames["Aimbot"]
 
 local AimbotToggle = Instance.new("TextButton")
@@ -187,7 +199,6 @@ KeyBindButton.TextSize = 12
 KeyBindButton.Font = Enum.Font.Gotham
 KeyBindButton.Parent = AimbotFrame
 
--- FIXED: Working Aim Part Button
 local AimPartButton = Instance.new("TextButton")
 AimPartButton.Size = UDim2.new(0.9, 0, 0, 30)
 AimPartButton.Position = UDim2.new(0.05, 0, 0.4, 0)
@@ -201,8 +212,8 @@ AimPartButton.Parent = AimbotFrame
 local VisibilityToggle = Instance.new("TextButton")
 VisibilityToggle.Size = UDim2.new(0.9, 0, 0, 30)
 VisibilityToggle.Position = UDim2.new(0.05, 0, 0.55, 0)
-VisibilityToggle.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
-VisibilityToggle.Text = "Visibility Check: OFF"
+VisibilityToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+VisibilityToggle.Text = "Visibility Check: ON"
 VisibilityToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 VisibilityToggle.TextSize = 12
 VisibilityToggle.Font = Enum.Font.Gotham
@@ -219,7 +230,7 @@ SmoothnessFrame.Parent = AimbotFrame
 local SmoothnessLabel = Instance.new("TextLabel")
 SmoothnessLabel.Size = UDim2.new(1, 0, 0, 20)
 SmoothnessLabel.BackgroundTransparency = 1
-SmoothnessLabel.Text = "Smoothness: 10%"
+SmoothnessLabel.Text = "Smoothness: 50%"
 SmoothnessLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
 SmoothnessLabel.TextSize = 12
 SmoothnessLabel.Font = Enum.Font.Gotham
@@ -234,12 +245,12 @@ SmoothnessSlider.Parent = SmoothnessFrame
 
 local SmoothnessButton = Instance.new("TextButton")
 SmoothnessButton.Size = UDim2.new(0, 15, 0, 15)
-SmoothnessButton.Position = UDim2.new(Smoothness, -7, 0, -2)
+SmoothnessButton.Position = UDim2.new(0.5, -7, 0, -2)
 SmoothnessButton.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
 SmoothnessButton.Text = ""
 SmoothnessButton.Parent = SmoothnessSlider
 
--- Visuals Tab
+-- Visuals Tab Content
 local VisualsFrame = TabFrames["Visuals"]
 
 local ESPToggle = Instance.new("TextButton")
@@ -252,18 +263,48 @@ ESPToggle.TextSize = 12
 ESPToggle.Font = Enum.Font.GothamBold
 ESPToggle.Parent = VisualsFrame
 
--- Settings Tab
+local StreamSafeToggle = Instance.new("TextButton")
+StreamSafeToggle.Size = UDim2.new(0.9, 0, 0, 30)
+StreamSafeToggle.Position = UDim2.new(0.05, 0, 0.25, 0)
+StreamSafeToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+StreamSafeToggle.Text = "Stream Safe: ON"
+StreamSafeToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+StreamSafeToggle.TextSize = 12
+StreamSafeToggle.Font = Enum.Font.GothamBold
+StreamSafeToggle.Parent = VisualsFrame
+
+-- Settings Tab Content
 local SettingsFrame = TabFrames["Settings"]
+
+local ScreenshotProtectionToggle = Instance.new("TextButton")
+ScreenshotProtectionToggle.Size = UDim2.new(0.9, 0, 0, 30)
+ScreenshotProtectionToggle.Position = UDim2.new(0.05, 0, 0.1, 0)
+ScreenshotProtectionToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+ScreenshotProtectionToggle.Text = "Screenshot Protect: ON"
+ScreenshotProtectionToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+ScreenshotProtectionToggle.TextSize = 12
+ScreenshotProtectionToggle.Font = Enum.Font.GothamBold
+ScreenshotProtectionToggle.Parent = SettingsFrame
 
 local HideGUIToggle = Instance.new("TextButton")
 HideGUIToggle.Size = UDim2.new(0.9, 0, 0, 30)
-HideGUIToggle.Position = UDim2.new(0.05, 0, 0.1, 0)
+HideGUIToggle.Position = UDim2.new(0.05, 0, 0.25, 0)
 HideGUIToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
 HideGUIToggle.Text = "Hide GUI: OFF"
 HideGUIToggle.TextColor3 = Color3.fromRGB(220, 220, 220)
 HideGUIToggle.TextSize = 12
 HideGUIToggle.Font = Enum.Font.Gotham
 HideGUIToggle.Parent = SettingsFrame
+
+local CloseButton = Instance.new("TextButton")
+CloseButton.Size = UDim2.new(0.9, 0, 0, 30)
+CloseButton.Position = UDim2.new(0.05, 0, 0.4, 0)
+CloseButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+CloseButton.Text = "Close GUI"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 12
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Parent = SettingsFrame
 
 -- Set default tab
 TabFrames["Aimbot"].Visible = true
@@ -275,34 +316,30 @@ local AimbotActive = false
 local CurrentTarget = nil
 local GUIHidden = false
 local ESPHighlights = {}
-local smoothDragging = false
 
--- FIXED: INSTANT ESP Function - No wait time
+-- UNIVERSAL ESP Function
 local function createESP(player)
     if player == LocalPlayer then return end
+    if not isEnemy(player) then return end
     
-    local function setupESP()
-        local character = getCharacter(player)
-        if not character then return end
-        
-        if not isEnemy(player) then 
-            if ESPHighlights[player] then
-                ESPHighlights[player]:Destroy()
-                ESPHighlights[player] = nil
-            end
-            return 
-        end
-        
-        if ESPHighlights[player] then
-            ESPHighlights[player]:Destroy()
-        end
-        
-        if not ESPEnabled then return end
+    local character = getCharacter(player)
+    if not character then return end
+    
+    -- Remove old ESP
+    if ESPHighlights[player] then
+        ESPHighlights[player]:Destroy()
+        ESPHighlights[player] = nil
+    end
+    
+    if not ESPEnabled then return end
 
+    local function setupESP()
+        if not character or not character.Parent then return end
+        
         local highlight = Instance.new("Highlight")
         highlight.Name = "ESP_" .. player.Name
         highlight.FillColor = Color3.new(0, 0, 0)
-        highlight.OutlineColor = Color3.new(1, 1, 1)
+        highlight.OutlineColor = Color3.new(1, 1, 1) -- White outline
         highlight.FillTransparency = 1
         highlight.OutlineTransparency = 0
         highlight.Enabled = true
@@ -311,28 +348,18 @@ local function createESP(player)
         highlight.Adornee = character
         
         ESPHighlights[player] = highlight
-        
-        -- Track respawn instantly
-        local humanoid = character:FindFirstChild("Humanoid")
-        if humanoid then
-            humanoid.Died:Connect(function()
-                if ESPHighlights[player] then
-                    ESPHighlights[player]:Destroy()
-                    ESPHighlights[player] = nil
-                end
-            end)
-        end
     end
 
-    -- FIXED: Instant setup without wait
-    if player.Character then
+    -- Wait for character to fully load
+    if character:FindFirstChild("Humanoid") then
         setupESP()
+    else
+        character.ChildAdded:Connect(function(child)
+            if child:IsA("Humanoid") then
+                setupESP()
+            end
+        end)
     end
-    
-    -- FIXED: Instant ESP on character added
-    player.CharacterAdded:Connect(function(character)
-        setupESP() -- No wait time
-    end)
 end
 
 local function removeESP(player)
@@ -353,16 +380,15 @@ local function updateESP()
     end
 end
 
--- Aimbot Functions
+-- UNIVERSAL Aimbot Functions
 local function getClosestEnemy()
     local closestPlayer = nil
     local closestDistance = math.huge
     
     local localChar = getCharacter(LocalPlayer)
-    if not localChar then return nil end
-    
-    local localHead = getBodyPart(localChar, "Head")
-    if not localHead then return nil end
+    if not localChar or not getBodyPart(localChar, "Head") then
+        return nil
+    end
     
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and isEnemy(player) then
@@ -373,7 +399,7 @@ local function getClosestEnemy()
                 if VisibilityCheck and not isVisible(aimPart) then
                     -- Skip if not visible
                 else
-                    local distance = (localHead.Position - aimPart.Position).Magnitude
+                    local distance = (getBodyPart(localChar, "Head").Position - aimPart.Position).Magnitude
                     if distance < closestDistance then
                         closestDistance = distance
                         closestPlayer = player
@@ -388,24 +414,54 @@ end
 
 local function smoothAim(targetPosition)
     local camera = Workspace.CurrentCamera
-    if not camera then return end
-    
     local currentCFrame = camera.CFrame
     local targetCFrame = CFrame.new(camera.CFrame.Position, targetPosition)
     
-    local newCFrame = currentCFrame:Lerp(targetCFrame, 1 - Smoothness)
+    local smoothFactor = math.clamp(Smoothness, 0.1, 0.9)
+    local newCFrame = currentCFrame:Lerp(targetCFrame, 1 - smoothFactor)
+    
     camera.CFrame = newCFrame
 end
 
--- GUI toggle
-local function toggleGUI()
-    MainFrame.Visible = not MainFrame.Visible
-    GUIHidden = not MainFrame.Visible
-    HideGUIToggle.Text = "Hide GUI: " .. (GUIHidden and "ON" or "OFF")
-    HideGUIToggle.BackgroundColor3 = GUIHidden and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(60, 60, 65)
+-- Screenshot Protection
+local ScreenshotKeys = {
+    Enum.KeyCode.Print,
+    Enum.KeyCode.F12,
+    Enum.KeyCode.F11,
+    Enum.KeyCode.F10,
+    Enum.KeyCode.F9
+}
+
+local function hideEverything()
+    if not ScreenshotProtection then return end
+    
+    MainFrame.Visible = false
+    
+    for _, highlight in pairs(ESPHighlights) do
+        if highlight then
+            highlight.Enabled = false
+        end
+    end
 end
 
--- Button Handlers
+local function showEverything()
+    if not ScreenshotProtection then return end
+    
+    MainFrame.Visible = not GUIHidden
+    
+    for _, highlight in pairs(ESPHighlights) do
+        if highlight then
+            highlight.Enabled = true
+        end
+    end
+end
+
+-- GUI Functions
+local function toggleGUI()
+    MainFrame.Visible = not MainFrame.Visible
+end
+
+-- Button Handlers (SAME AS YOUR ORIGINAL)
 AimbotToggle.MouseButton1Click:Connect(function()
     AimbotEnabled = not AimbotEnabled
     AimbotToggle.Text = "Aimbot: " .. (AimbotEnabled and "ON" or "OFF")
@@ -419,17 +475,38 @@ ESPToggle.MouseButton1Click:Connect(function()
     updateESP()
 end)
 
+StreamSafeToggle.MouseButton1Click:Connect(function()
+    StreamSafe = not StreamSafe
+    StreamSafeToggle.Text = "Stream Safe: " .. (StreamSafe and "ON" or "OFF")
+    StreamSafeToggle.BackgroundColor3 = StreamSafe and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
+end)
+
 VisibilityToggle.MouseButton1Click:Connect(function()
     VisibilityCheck = not VisibilityCheck
     VisibilityToggle.Text = "Visibility Check: " .. (VisibilityCheck and "ON" or "OFF")
     VisibilityToggle.BackgroundColor3 = VisibilityCheck and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
 end)
 
-HideGUIToggle.MouseButton1Click:Connect(function()
-    toggleGUI()
+ScreenshotProtectionToggle.MouseButton1Click:Connect(function()
+    ScreenshotProtection = not ScreenshotProtection
+    ScreenshotProtectionToggle.Text = "Screenshot Protect: " .. (ScreenshotProtection and "ON" or "OFF")
+    ScreenshotProtectionToggle.BackgroundColor3 = ScreenshotProtection and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
 end)
 
--- FIXED: Working Aim Part Button
+HideGUIToggle.MouseButton1Click:Connect(function()
+    GUIHidden = not GUIHidden
+    MainFrame.Visible = not GUIHidden
+    HideGUIToggle.Text = "Hide GUI: " .. (GUIHidden and "ON" or "OFF")
+    HideGUIToggle.BackgroundColor3 = GUIHidden and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(60, 60, 65)
+end)
+
+CloseButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    GUIHidden = true
+    HideGUIToggle.Text = "Hide GUI: ON"
+    HideGUIToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+end)
+
 AimPartButton.MouseButton1Click:Connect(function()
     if AimPart == "Head" then
         AimPart = "HumanoidRootPart"
@@ -440,14 +517,8 @@ AimPartButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- FIXED: Working Key Binding
-KeyBindButton.MouseButton1Click:Connect(function()
-    KeyListening = true
-    KeyBindButton.Text = "Press any key..."
-    KeyBindButton.BackgroundColor3 = Color3.fromRGB(80, 80, 85)
-end)
-
--- Smoothness Slider
+-- Slider Functionality (SAME AS YOUR ORIGINAL)
+local smoothDragging = false
 SmoothnessButton.MouseButton1Down:Connect(function()
     smoothDragging = true
 end)
@@ -463,7 +534,7 @@ UserInputService.InputChanged:Connect(function(input)
         if smoothDragging then
             local xPos = math.clamp(input.Position.X - SmoothnessSlider.AbsolutePosition.X, 0, SmoothnessSlider.AbsoluteSize.X)
             local ratio = xPos / SmoothnessSlider.AbsoluteSize.X
-            Smoothness = math.clamp(ratio, 0.05, 0.9)
+            Smoothness = math.clamp(ratio, 0.1, 0.9)
             
             SmoothnessButton.Position = UDim2.new(ratio, -7, 0, -2)
             SmoothnessLabel.Text = "Smoothness: " .. math.floor(Smoothness * 100) .. "%"
@@ -471,11 +542,16 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- FIXED: Input handling with working key binding
+-- Key Binding (SAME AS YOUR ORIGINAL)
+KeyBindButton.MouseButton1Click:Connect(function()
+    KeyListening = true
+    KeyBindButton.Text = "Press any key..."
+    KeyBindButton.BackgroundColor3 = Color3.fromRGB(80, 80, 85)
+end)
+
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    -- FIXED: Working key binding
     if KeyListening then
         if input.UserInputType == Enum.UserInputType.Keyboard then
             AimbotKey = input.KeyCode
@@ -489,11 +565,17 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         return
     end
     
+    -- Screenshot detection
+    if table.find(ScreenshotKeys, input.KeyCode) and ScreenshotProtection then
+        hideEverything()
+        wait(0.5)
+        showEverything()
+    end
+    
     if input.KeyCode == ToggleKey then
         toggleGUI()
     end
     
-    -- FIXED: Working aim key detection
     if (input.KeyCode == AimbotKey or input.UserInputType == AimbotKey) and AimbotEnabled then
         AimbotActive = true
         CurrentTarget = getClosestEnemy()
@@ -507,8 +589,8 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
     end
 end)
 
--- Aimbot Loop
-RunService.RenderStepped:Connect(function()
+-- UNIVERSAL Aimbot Loop
+RunService.Heartbeat:Connect(function()
     if AimbotActive and AimbotEnabled then
         local target = CurrentTarget or getClosestEnemy()
         
@@ -528,17 +610,37 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- FIXED: Instant player tracking
+-- UNIVERSAL Player setup
 for _, player in pairs(Players:GetPlayers()) do
-    createESP(player)
+    if player.Character then
+        spawn(function() createESP(player) end)
+    end
+    player.CharacterAdded:Connect(function(character)
+        spawn(function() 
+            wait(1)
+            createESP(player) 
+        end)
+    end)
 end
 
 Players.PlayerAdded:Connect(function(player)
-    createESP(player)
+    player.CharacterAdded:Connect(function(character)
+        spawn(function()
+            wait(1)
+            createESP(player)
+        end)
+    end)
+end)
+
+LocalPlayer:GetPropertyChangedSignal("Team"):Connect(function()
+    spawn(function()
+        wait(0.5)
+        updateESP()
+    end)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
     removeESP(player)
 end)
 
-warn("xSaraap Hub - INSTANT ESP & WORKING CONTROLS loaded successfully!")
+warn("xSaraap Hub UNIVERSAL loaded successfully in " .. gameName)
