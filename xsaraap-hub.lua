@@ -1,4 +1,4 @@
--- xSaraap Hub - FIXED VISIBILITY & SMOOTHNESS
+-- xSaraap Hub - INSTANT ESP & WORKING CONTROLS
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -19,7 +19,7 @@ if success and gameInfo then
 end
 warn("xSaraap Hub loaded in: " .. gameName)
 
--- FIXED: Proper Team Check Function
+-- Team Check Function
 local function isEnemy(player)
     if player == LocalPlayer then return false end
     
@@ -65,7 +65,7 @@ local Smoothness = 0.1
 local StreamSafe = true
 local ScreenshotProtection = true
 
--- FIXED: Working Visibility Check Function
+-- Visibility Check Function
 local function isVisible(targetPart)
     if not VisibilityCheck then return true end
     local localChar = getCharacter(LocalPlayer)
@@ -187,6 +187,7 @@ KeyBindButton.TextSize = 12
 KeyBindButton.Font = Enum.Font.Gotham
 KeyBindButton.Parent = AimbotFrame
 
+-- FIXED: Working Aim Part Button
 local AimPartButton = Instance.new("TextButton")
 AimPartButton.Size = UDim2.new(0.9, 0, 0, 30)
 AimPartButton.Position = UDim2.new(0.05, 0, 0.4, 0)
@@ -207,7 +208,7 @@ VisibilityToggle.TextSize = 12
 VisibilityToggle.Font = Enum.Font.Gotham
 VisibilityToggle.Parent = AimbotFrame
 
--- FIXED: Added back Smoothness Slider
+-- Smoothness Slider
 local SmoothnessFrame = Instance.new("Frame")
 SmoothnessFrame.Size = UDim2.new(0.9, 0, 0, 50)
 SmoothnessFrame.Position = UDim2.new(0.05, 0, 0.75, 0)
@@ -276,7 +277,7 @@ local GUIHidden = false
 local ESPHighlights = {}
 local smoothDragging = false
 
--- ESP Function with proper team detection and outline only
+-- FIXED: INSTANT ESP Function - No wait time
 local function createESP(player)
     if player == LocalPlayer then return end
     
@@ -311,6 +312,7 @@ local function createESP(player)
         
         ESPHighlights[player] = highlight
         
+        -- Track respawn instantly
         local humanoid = character:FindFirstChild("Humanoid")
         if humanoid then
             humanoid.Died:Connect(function()
@@ -322,13 +324,14 @@ local function createESP(player)
         end
     end
 
+    -- FIXED: Instant setup without wait
     if player.Character then
-        spawn(setupESP)
+        setupESP()
     end
     
+    -- FIXED: Instant ESP on character added
     player.CharacterAdded:Connect(function(character)
-        wait(1)
-        setupESP()
+        setupESP() -- No wait time
     end)
 end
 
@@ -350,7 +353,7 @@ local function updateESP()
     end
 end
 
--- FIXED: Aimbot Functions with WORKING Visibility Check
+-- Aimbot Functions
 local function getClosestEnemy()
     local closestPlayer = nil
     local closestDistance = math.huge
@@ -367,9 +370,8 @@ local function getClosestEnemy()
             local aimPart = getBodyPart(character, AimPart)
             
             if character and aimPart then
-                -- FIXED: Actually use the visibility check
                 if VisibilityCheck and not isVisible(aimPart) then
-                    -- Skip if not visible and visibility check is enabled
+                    -- Skip if not visible
                 else
                     local distance = (localHead.Position - aimPart.Position).Magnitude
                     if distance < closestDistance then
@@ -427,6 +429,7 @@ HideGUIToggle.MouseButton1Click:Connect(function()
     toggleGUI()
 end)
 
+-- FIXED: Working Aim Part Button
 AimPartButton.MouseButton1Click:Connect(function()
     if AimPart == "Head" then
         AimPart = "HumanoidRootPart"
@@ -437,7 +440,14 @@ AimPartButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- FIXED: Smoothness Slider Functionality
+-- FIXED: Working Key Binding
+KeyBindButton.MouseButton1Click:Connect(function()
+    KeyListening = true
+    KeyBindButton.Text = "Press any key..."
+    KeyBindButton.BackgroundColor3 = Color3.fromRGB(80, 80, 85)
+end)
+
+-- Smoothness Slider
 SmoothnessButton.MouseButton1Down:Connect(function()
     smoothDragging = true
 end)
@@ -453,7 +463,7 @@ UserInputService.InputChanged:Connect(function(input)
         if smoothDragging then
             local xPos = math.clamp(input.Position.X - SmoothnessSlider.AbsolutePosition.X, 0, SmoothnessSlider.AbsoluteSize.X)
             local ratio = xPos / SmoothnessSlider.AbsoluteSize.X
-            Smoothness = math.clamp(ratio, 0.05, 0.9)  -- 5% to 90% smoothness
+            Smoothness = math.clamp(ratio, 0.05, 0.9)
             
             SmoothnessButton.Position = UDim2.new(ratio, -7, 0, -2)
             SmoothnessLabel.Text = "Smoothness: " .. math.floor(Smoothness * 100) .. "%"
@@ -461,10 +471,11 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Input handling
+-- FIXED: Input handling with working key binding
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
+    -- FIXED: Working key binding
     if KeyListening then
         if input.UserInputType == Enum.UserInputType.Keyboard then
             AimbotKey = input.KeyCode
@@ -482,6 +493,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         toggleGUI()
     end
     
+    -- FIXED: Working aim key detection
     if (input.KeyCode == AimbotKey or input.UserInputType == AimbotKey) and AimbotEnabled then
         AimbotActive = true
         CurrentTarget = getClosestEnemy()
@@ -516,7 +528,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Player tracking
+-- FIXED: Instant player tracking
 for _, player in pairs(Players:GetPlayers()) do
     createESP(player)
 end
@@ -529,4 +541,4 @@ Players.PlayerRemoving:Connect(function(player)
     removeESP(player)
 end)
 
-warn("xSaraap Hub - FIXED VISIBILITY & SMOOTHNESS loaded successfully!")
+warn("xSaraap Hub - INSTANT ESP & WORKING CONTROLS loaded successfully!")
