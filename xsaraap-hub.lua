@@ -1,4 +1,4 @@
--- xSaraap Hub - FINAL FIXED VERSION
+-- xSaraap Hub - PROPER TEAM DETECTION & OUTLINE ESP
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -19,18 +19,21 @@ if success and gameInfo then
 end
 warn("xSaraap Hub loaded in: " .. gameName)
 
--- Universal Team Check Function
+-- FIXED: Proper Team Check Function
 local function isEnemy(player)
     if player == LocalPlayer then return false end
     
+    -- Method 1: Team check (works for most FPS games)
     if LocalPlayer.Team and player.Team then
         return LocalPlayer.Team ~= player.Team
     end
     
+    -- Method 2: Check if player is in different team colors
     if LocalPlayer.TeamColor and player.TeamColor then
         return LocalPlayer.TeamColor ~= player.TeamColor
     end
     
+    -- Method 3: For games without teams, treat everyone as enemy except yourself
     return true
 end
 
@@ -61,7 +64,7 @@ local AimbotKey = Enum.UserInputType.MouseButton2
 local ToggleKey = Enum.KeyCode.Delete
 local AimPart = "Head"
 local VisibilityCheck = false
-local Smoothness = 0.1  -- Lower for faster aiming
+local Smoothness = 0.1
 local StreamSafe = true
 local ScreenshotProtection = true
 
@@ -224,14 +227,22 @@ local CurrentTarget = nil
 local GUIHidden = false
 local ESPHighlights = {}
 
--- FIXED: ESP Function with respawn support
+-- FIXED: ESP Function with PROPER team detection and OUTLINE ONLY
 local function createESP(player)
     if player == LocalPlayer then return end
     
     local function setupESP()
         local character = getCharacter(player)
         if not character then return end
-        if not isEnemy(player) then return end
+        
+        -- FIXED: Check if enemy BEFORE creating ESP
+        if not isEnemy(player) then 
+            if ESPHighlights[player] then
+                ESPHighlights[player]:Destroy()
+                ESPHighlights[player] = nil
+            end
+            return 
+        end
         
         if ESPHighlights[player] then
             ESPHighlights[player]:Destroy()
@@ -241,9 +252,9 @@ local function createESP(player)
 
         local highlight = Instance.new("Highlight")
         highlight.Name = "ESP_" .. player.Name
-        highlight.FillColor = Color3.new(1, 0, 0)
-        highlight.OutlineColor = Color3.new(1, 1, 1)
-        highlight.FillTransparency = 0.7
+        highlight.FillColor = Color3.new(0, 0, 0)  -- Black fill (invisible)
+        highlight.OutlineColor = Color3.new(1, 1, 1) -- White outline
+        highlight.FillTransparency = 1  -- FIXED: Completely transparent fill (OUTLINE ONLY)
         highlight.OutlineTransparency = 0
         highlight.Enabled = true
         
@@ -252,7 +263,7 @@ local function createESP(player)
         
         ESPHighlights[player] = highlight
         
-        -- FIXED: Track respawn
+        -- Track respawn
         local humanoid = character:FindFirstChild("Humanoid")
         if humanoid then
             humanoid.Died:Connect(function()
@@ -292,7 +303,7 @@ local function updateESP()
     end
 end
 
--- FIXED: Aimbot Functions
+-- FIXED: Aimbot Functions with PROPER team detection
 local function getClosestEnemy()
     local closestPlayer = nil
     local closestDistance = math.huge
@@ -304,7 +315,7 @@ local function getClosestEnemy()
     if not localHead then return nil end
     
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and isEnemy(player) then
+        if player ~= LocalPlayer and isEnemy(player) then  -- FIXED: Only target enemies
             local character = getCharacter(player)
             local aimPart = getBodyPart(character, AimPart)
             
@@ -321,7 +332,6 @@ local function getClosestEnemy()
     return closestPlayer
 end
 
--- FIXED: Better smooth aim function
 local function smoothAim(targetPosition)
     local camera = Workspace.CurrentCamera
     if not camera then return end
@@ -333,7 +343,7 @@ local function smoothAim(targetPosition)
     camera.CFrame = newCFrame
 end
 
--- FIXED: Simple GUI toggle
+-- GUI toggle
 local function toggleGUI()
     MainFrame.Visible = not MainFrame.Visible
     GUIHidden = not MainFrame.Visible
@@ -369,11 +379,11 @@ AimPartButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- FIXED: Input handling
+-- Input handling
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    -- FIXED: Delete key toggle
+    -- Delete key toggle
     if input.KeyCode == ToggleKey then
         toggleGUI()
     end
@@ -391,8 +401,8 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
     end
 end)
 
--- FIXED: Aimbot Loop
-RunService.RenderStepped:Connect(function()  -- Changed to RenderStepped for better responsiveness
+-- Aimbot Loop
+RunService.RenderStepped:Connect(function()
     if AimbotActive and AimbotEnabled then
         local target = CurrentTarget or getClosestEnemy()
         
@@ -412,7 +422,7 @@ RunService.RenderStepped:Connect(function()  -- Changed to RenderStepped for bet
     end
 end)
 
--- FIXED: Player tracking
+-- Player tracking
 for _, player in pairs(Players:GetPlayers()) do
     createESP(player)
 end
@@ -425,4 +435,4 @@ Players.PlayerRemoving:Connect(function(player)
     removeESP(player)
 end)
 
-warn("xSaraap Hub FIXED loaded successfully!")
+warn("xSaraap Hub - PROPER TEAM DETECTION & OUTLINE ESP loaded successfully!")
