@@ -1,4 +1,4 @@
--- SFPS Hub - ESP & Aimbot
+-- xSaraap Hub - FINAL WORKING VERSION
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -9,16 +9,6 @@ local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
--- Game Detection
-local gameName = "Unknown Game"
-local success, gameInfo = pcall(function()
-    return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
-end)
-if success and gameInfo then
-    gameName = gameInfo.Name
-end
-warn("SFPS Hub loaded in: " .. gameName)
-
 -- Settings
 local ESPEnabled = true
 local AimbotEnabled = false
@@ -27,115 +17,21 @@ local ToggleKey = Enum.KeyCode.Delete
 local AimPart = "Head"
 local VisibilityCheck = true
 local Smoothness = 0.5
-
--- INSTANT ESP System - White Outline Only
-local function createInstantESP(player)
-    if player == LocalPlayer then return end
-    
-    local function setupESP()
-        if not ESPEnabled then return end
-        if not isEnemy(player) then return end
-        
-        local character = player.Character
-        if not character then return end
-        
-        -- Remove old ESP immediately
-        if ESPHighlights[player] then
-            ESPHighlights[player]:Destroy()
-            ESPHighlights[player] = nil
-        end
-
-        -- Wait for humanoid to exist
-        if not character:FindFirstChild("Humanoid") then
-            local humanoid = character:WaitForChild("Humanoid", 2)
-            if not humanoid then return end
-        end
-
-        if character.Humanoid.Health <= 0 then return end
-
-        local highlight = Instance.new("Highlight")
-        highlight.Name = "ESP_" .. player.Name
-        
-        -- WHITE OUTLINE ONLY - No fill color
-        highlight.FillColor = Color3.new(1, 1, 1)  -- White
-        highlight.OutlineColor = Color3.new(1, 1, 1)  -- White
-        highlight.FillTransparency = 1  -- Completely transparent fill
-        highlight.OutlineTransparency = 0  -- Solid white outline
-        highlight.Enabled = true
-        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        
-        highlight.Parent = character
-        highlight.Adornee = character
-        
-        ESPHighlights[player] = highlight
-        
-        -- Track death and respawn
-        local function onCharacterDied()
-            if ESPHighlights[player] then
-                ESPHighlights[player]:Destroy()
-                ESPHighlights[player] = nil
-            end
-        end
-        
-        character.Humanoid.Died:Connect(onCharacterDied)
-        
-        -- Track health changes
-        character.Humanoid.HealthChanged:Connect(function(health)
-            if health <= 0 then
-                onCharacterDied()
-            end
-        end)
-    end
-
-    -- Setup immediately if character exists
-    if player.Character then
-        spawn(setupESP)
-    end
-    
-    -- Setup when character is added
-    player.CharacterAdded:Connect(function(character)
-        wait(0.5) -- Small delay to allow character to fully load
-        setupESP()
-    end)
-end
+local StreamSafe = true
+local ScreenshotProtection = true
 
 -- Team check function
 local function isEnemy(player)
-    if player == LocalPlayer then return false end
     if LocalPlayer.Team and player.Team then
         return LocalPlayer.Team ~= player.Team
     end
-    if LocalPlayer.TeamColor and player.TeamColor then
-        return LocalPlayer.TeamColor ~= player.TeamColor
-    end
     return true
-end
-
--- Character check
-local function getCharacter(player)
-    local character = player.Character
-    if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
-        return character
-    end
-    return nil
-end
-
--- Body part check
-local function getBodyPart(character, partName)
-    if character and character:FindFirstChild(partName) then
-        return character[partName]
-    end
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        return character.HumanoidRootPart
-    end
-    return nil
 end
 
 -- Visibility check function
 local function isVisible(targetPart)
     if not VisibilityCheck then return true end
-    local localChar = getCharacter(LocalPlayer)
-    if not localChar then return false end
+    if not LocalPlayer.Character then return false end
     
     local camera = Workspace.CurrentCamera
     local origin = camera.CFrame.Position
@@ -143,20 +39,22 @@ local function isVisible(targetPart)
     
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.FilterDescendantsInstances = {localChar, targetPart.Parent}
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, targetPart.Parent}
     raycastParams.IgnoreWater = true
     
     local raycastResult = Workspace:Raycast(origin, target - origin, raycastParams)
     
-    return raycastResult == nil
+    if raycastResult then
+        return false
+    end
+    
+    return true
 end
 
 -- Create GUI
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "SFPSHub"
+ScreenGui.Name = "xSaraapHub"
 ScreenGui.Parent = game:GetService("CoreGui")
-ScreenGui.ResetOnSpawn = false
-ScreenGui.IgnoreGuiInset = true
 
 -- Main Container
 local MainFrame = Instance.new("Frame")
@@ -177,9 +75,9 @@ TitleBar.Parent = MainFrame
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 1, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "SFPS Hub - " .. gameName
+Title.Text = "xSaraap Hub"
 Title.TextColor3 = Color3.fromRGB(220, 220, 220)
-Title.TextSize = 14
+Title.TextSize = 16
 Title.Font = Enum.Font.GothamBold
 Title.Parent = TitleBar
 
@@ -195,6 +93,7 @@ TabContainer.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
 TabContainer.BorderSizePixel = 0
 TabContainer.Parent = MainFrame
 
+-- Content Area
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Size = UDim2.new(1, -100, 1, -30)
 ContentFrame.Position = UDim2.new(0, 100, 0, 30)
@@ -202,6 +101,7 @@ ContentFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 ContentFrame.BorderSizePixel = 0
 ContentFrame.Parent = MainFrame
 
+-- Create Tabs
 for i, tabName in pairs(Tabs) do
     local TabButton = Instance.new("TextButton")
     TabButton.Size = UDim2.new(1, 0, 0, 40)
@@ -321,12 +221,32 @@ ESPToggle.TextSize = 12
 ESPToggle.Font = Enum.Font.GothamBold
 ESPToggle.Parent = VisualsFrame
 
+local StreamSafeToggle = Instance.new("TextButton")
+StreamSafeToggle.Size = UDim2.new(0.9, 0, 0, 30)
+StreamSafeToggle.Position = UDim2.new(0.05, 0, 0.25, 0)
+StreamSafeToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+StreamSafeToggle.Text = "Stream Safe: ON"
+StreamSafeToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+StreamSafeToggle.TextSize = 12
+StreamSafeToggle.Font = Enum.Font.GothamBold
+StreamSafeToggle.Parent = VisualsFrame
+
 -- Settings Tab Content
 local SettingsFrame = TabFrames["Settings"]
 
+local ScreenshotProtectionToggle = Instance.new("TextButton")
+ScreenshotProtectionToggle.Size = UDim2.new(0.9, 0, 0, 30)
+ScreenshotProtectionToggle.Position = UDim2.new(0.05, 0, 0.1, 0)
+ScreenshotProtectionToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+ScreenshotProtectionToggle.Text = "Screenshot Protect: ON"
+ScreenshotProtectionToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+ScreenshotProtectionToggle.TextSize = 12
+ScreenshotProtectionToggle.Font = Enum.Font.GothamBold
+ScreenshotProtectionToggle.Parent = SettingsFrame
+
 local HideGUIToggle = Instance.new("TextButton")
 HideGUIToggle.Size = UDim2.new(0.9, 0, 0, 30)
-HideGUIToggle.Position = UDim2.new(0.05, 0, 0.1, 0)
+HideGUIToggle.Position = UDim2.new(0.05, 0, 0.25, 0)
 HideGUIToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
 HideGUIToggle.Text = "Hide GUI: OFF"
 HideGUIToggle.TextColor3 = Color3.fromRGB(220, 220, 220)
@@ -336,7 +256,7 @@ HideGUIToggle.Parent = SettingsFrame
 
 local CloseButton = Instance.new("TextButton")
 CloseButton.Size = UDim2.new(0.9, 0, 0, 30)
-CloseButton.Position = UDim2.new(0.05, 0, 0.25, 0)
+CloseButton.Position = UDim2.new(0.05, 0, 0.4, 0)
 CloseButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
 CloseButton.Text = "Close GUI"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -355,7 +275,53 @@ local CurrentTarget = nil
 local GUIHidden = false
 local ESPHighlights = {}
 
--- Remove ESP function
+-- ESP Function (FIXED)
+local function createESP(player)
+    if player == LocalPlayer then return end
+    if not isEnemy(player) then return end
+    
+    local character = player.Character
+    if not character then return end
+    
+    -- Remove old ESP
+    if ESPHighlights[player] then
+        ESPHighlights[player]:Destroy()
+        ESPHighlights[player] = nil
+    end
+    
+    if not ESPEnabled then return end
+
+    local function setupESP()
+        if not character or not character.Parent then return end
+        
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "ESP_" .. player.Name
+        highlight.FillColor = Color3.new(0, 0, 0)
+        highlight.OutlineColor = Color3.new(1, 1, 1) -- White outline
+        highlight.FillTransparency = 1
+        highlight.OutlineTransparency = 0
+        highlight.Enabled = true
+        
+        -- FIXED: Always parent to character for ESP to work
+        highlight.Parent = character
+        highlight.Adornee = character
+        
+        ESPHighlights[player] = highlight
+    end
+
+    -- Wait for character to fully load
+    if character:FindFirstChild("Humanoid") then
+        setupESP()
+    else
+        character.ChildAdded:Connect(function(child)
+            if child:IsA("Humanoid") then
+                wait(0.5)
+                setupESP()
+            end
+        end)
+    end
+end
+
 local function removeESP(player)
     if ESPHighlights[player] then
         ESPHighlights[player]:Destroy()
@@ -363,38 +329,37 @@ local function removeESP(player)
     end
 end
 
--- Update ESP function
 local function updateESP()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             removeESP(player)
             if ESPEnabled and isEnemy(player) then
-                createInstantESP(player)
+                createESP(player)
             end
         end
     end
 end
 
--- Aimbot Functions
+-- Aimbot Functions (FIXED)
 local function getClosestEnemy()
     local closestPlayer = nil
     local closestDistance = math.huge
     
-    local localChar = getCharacter(LocalPlayer)
-    if not localChar or not getBodyPart(localChar, "Head") then
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("Head") then
         return nil
     end
     
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and isEnemy(player) then
-            local character = getCharacter(player)
-            local aimPart = getBodyPart(character, AimPart)
+        if player ~= LocalPlayer and isEnemy(player) and player.Character then
+            local character = player.Character
+            local humanoid = character:FindFirstChild("Humanoid")
+            local aimPart = character:FindFirstChild(AimPart)
             
-            if character and aimPart then
+            if humanoid and humanoid.Health > 0 and aimPart then
                 if VisibilityCheck and not isVisible(aimPart) then
                     -- Skip if not visible
                 else
-                    local distance = (getBodyPart(localChar, "Head").Position - aimPart.Position).Magnitude
+                    local distance = (LocalPlayer.Character.Head.Position - aimPart.Position).Magnitude
                     if distance < closestDistance then
                         closestDistance = distance
                         closestPlayer = player
@@ -418,6 +383,39 @@ local function smoothAim(targetPosition)
     camera.CFrame = newCFrame
 end
 
+-- Screenshot Protection
+local ScreenshotKeys = {
+    Enum.KeyCode.Print,
+    Enum.KeyCode.F12,
+    Enum.KeyCode.F11,
+    Enum.KeyCode.F10,
+    Enum.KeyCode.F9
+}
+
+local function hideEverything()
+    if not ScreenshotProtection then return end
+    
+    MainFrame.Visible = false
+    
+    for _, highlight in pairs(ESPHighlights) do
+        if highlight then
+            highlight.Enabled = false
+        end
+    end
+end
+
+local function showEverything()
+    if not ScreenshotProtection then return end
+    
+    MainFrame.Visible = not GUIHidden
+    
+    for _, highlight in pairs(ESPHighlights) do
+        if highlight then
+            highlight.Enabled = true
+        end
+    end
+end
+
 -- GUI Functions
 local function toggleGUI()
     MainFrame.Visible = not MainFrame.Visible
@@ -437,10 +435,22 @@ ESPToggle.MouseButton1Click:Connect(function()
     updateESP()
 end)
 
+StreamSafeToggle.MouseButton1Click:Connect(function()
+    StreamSafe = not StreamSafe
+    StreamSafeToggle.Text = "Stream Safe: " .. (StreamSafe and "ON" or "OFF")
+    StreamSafeToggle.BackgroundColor3 = StreamSafe and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
+end)
+
 VisibilityToggle.MouseButton1Click:Connect(function()
     VisibilityCheck = not VisibilityCheck
     VisibilityToggle.Text = "Visibility Check: " .. (VisibilityCheck and "ON" or "OFF")
     VisibilityToggle.BackgroundColor3 = VisibilityCheck and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
+end)
+
+ScreenshotProtectionToggle.MouseButton1Click:Connect(function()
+    ScreenshotProtection = not ScreenshotProtection
+    ScreenshotProtectionToggle.Text = "Screenshot Protect: " .. (ScreenshotProtection and "ON" or "OFF")
+    ScreenshotProtectionToggle.BackgroundColor3 = ScreenshotProtection and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
 end)
 
 HideGUIToggle.MouseButton1Click:Connect(function()
@@ -515,6 +525,13 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         return
     end
     
+    -- Screenshot detection
+    if table.find(ScreenshotKeys, input.KeyCode) and ScreenshotProtection then
+        hideEverything()
+        wait(0.5)
+        showEverything()
+    end
+    
     if input.KeyCode == ToggleKey then
         toggleGUI()
     end
@@ -534,14 +551,12 @@ end)
 
 -- Aimbot Loop
 RunService.Heartbeat:Connect(function()
-    if AimbotActive and AimbotEnabled then
+    if AimbotActive and AimbotEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
         local target = CurrentTarget or getClosestEnemy()
         
-        if target then
-            local targetChar = getCharacter(target)
-            local aimPart = getBodyPart(targetChar, AimPart)
-            
-            if targetChar and aimPart then
+        if target and target.Character then
+            local aimPart = target.Character:FindFirstChild(AimPart)
+            if aimPart then
                 smoothAim(aimPart.Position)
                 CurrentTarget = target
             else
@@ -553,49 +568,37 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- ESP Update Loop to handle respawns and character changes
-RunService.Heartbeat:Connect(function()
-    if ESPEnabled then
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and isEnemy(player) then
-                local character = player.Character
-                if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
-                    if not ESPHighlights[player] then
-                        createInstantESP(player)
-                    end
-                elseif ESPHighlights[player] then
-                    removeESP(player)
-                end
-            elseif ESPHighlights[player] then
-                removeESP(player)
-            end
-        end
-    else
-        -- Clear all ESP if disabled
-        for player, highlight in pairs(ESPHighlights) do
-            if highlight then
-                highlight:Destroy()
-            end
-        end
-        ESPHighlights = {}
-    end
-end)
-
--- Initial ESP setup
+-- Auto setup for players
 for _, player in pairs(Players:GetPlayers()) do
-    createInstantESP(player)
+    if player.Character then
+        spawn(function() createESP(player) end)
+    end
+    player.CharacterAdded:Connect(function(character)
+        spawn(function() 
+            wait(1)
+            createESP(player) 
+        end)
+    end)
 end
 
 Players.PlayerAdded:Connect(function(player)
-    createInstantESP(player)
+    player.CharacterAdded:Connect(function(character)
+        spawn(function()
+            wait(1)
+            createESP(player)
+        end)
+    end)
+end)
+
+LocalPlayer:GetPropertyChangedSignal("Team"):Connect(function()
+    spawn(function()
+        wait(0.5)
+        updateESP()
+    end)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
     removeESP(player)
 end)
 
-LocalPlayer:GetPropertyChangedSignal("Team"):Connect(function()
-    updateESP()
-end)
-
-warn("SFPS Hub - ESP & Aimbot loaded successfully!")
+warn("xSaraap Hub loaded successfully!")
