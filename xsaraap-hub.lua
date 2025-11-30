@@ -10,7 +10,13 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
 -- Game Detection
-local gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+local gameName = "Unknown Game"
+local success, gameInfo = pcall(function()
+    return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
+end)
+if success and gameInfo then
+    gameName = gameInfo.Name
+end
 warn("xSaraap Hub loaded in: " .. gameName)
 
 -- Universal Team Check Function
@@ -27,7 +33,7 @@ local function isEnemy(player)
         return LocalPlayer.TeamColor ~= player.TeamColor
     end
     
-    -- Method 3: For games without teams, treat everyone as enemy
+    -- Method 3: For games without teams, treat everyone as enemy except yourself
     return true
 end
 
@@ -58,15 +64,16 @@ local AimbotEnabled = false
 local AimbotKey = Enum.UserInputType.MouseButton2
 local ToggleKey = Enum.KeyCode.Delete
 local AimPart = "Head"
-local VisibilityCheck = true
+local VisibilityCheck = false  -- Disabled by default for universal compatibility
 local Smoothness = 0.5
 local StreamSafe = true
 local ScreenshotProtection = true
 
--- Visibility check function (Universal)
+-- FIXED: Universal Visibility check function
 local function isVisible(targetPart)
     if not VisibilityCheck then return true end
-    if not LocalPlayer.Character then return false end
+    local localChar = getCharacter(LocalPlayer)
+    if not localChar then return false end
     
     local camera = Workspace.CurrentCamera
     local origin = camera.CFrame.Position
@@ -74,32 +81,22 @@ local function isVisible(targetPart)
     
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, targetPart.Parent}
+    local filterInstances = {localChar}
+    if targetPart.Parent then
+        table.insert(filterInstances, targetPart.Parent)
+    end
+    raycastParams.FilterDescendantsInstances = filterInstances
     raycastParams.IgnoreWater = true
     
     local raycastResult = Workspace:Raycast(origin, target - origin, raycastParams)
     
-    if raycastResult then
-        return false
-    end
-    
-    return true
+    return raycastResult == nil
 end
 
--- Safe GUI Creation
-local success, ScreenGui = pcall(function()
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "xSaraapHub"
-    gui.Parent = game:GetService("CoreGui")
-    return gui
-end)
-
-if not success then
-    warn("Failed to create GUI - using alternative method")
-    ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "xSaraapHub"
-    ScreenGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-end
+-- FIXED: Safe GUI Creation
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "xSaraapHub"
+ScreenGui.Parent = game:GetService("CoreGui")
 
 -- Main Container
 local MainFrame = Instance.new("Frame")
@@ -208,15 +205,15 @@ AimPartButton.Position = UDim2.new(0.05, 0, 0.4, 0)
 AimPartButton.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
 AimPartButton.Text = "Aim Part: Head"
 AimPartButton.TextColor3 = Color3.fromRGB(220, 220, 220)
-AimbotToggle.TextSize = 12
+AimPartButton.TextSize = 12
 AimPartButton.Font = Enum.Font.Gotham
 AimPartButton.Parent = AimbotFrame
 
 local VisibilityToggle = Instance.new("TextButton")
 VisibilityToggle.Size = UDim2.new(0.9, 0, 0, 30)
 VisibilityToggle.Position = UDim2.new(0.05, 0, 0.55, 0)
-VisibilityToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-VisibilityToggle.Text = "Visibility Check: ON"
+VisibilityToggle.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+VisibilityToggle.Text = "Visibility Check: OFF"
 VisibilityToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 VisibilityToggle.TextSize = 12
 VisibilityToggle.Font = Enum.Font.Gotham
@@ -289,7 +286,7 @@ local CurrentTarget = nil
 local GUIHidden = false
 local ESPHighlights = {}
 
--- Universal ESP Function
+-- FIXED: Universal ESP Function
 local function createESP(player)
     if player == LocalPlayer then return end
     if not isEnemy(player) then return end
@@ -310,9 +307,9 @@ local function createESP(player)
         
         local highlight = Instance.new("Highlight")
         highlight.Name = "ESP_" .. player.Name
-        highlight.FillColor = Color3.new(0, 0, 0)
-        highlight.OutlineColor = Color3.new(1, 1, 1)
-        highlight.FillTransparency = 1
+        highlight.FillColor = Color3.new(1, 0, 0)  -- Red fill for enemies
+        highlight.OutlineColor = Color3.new(1, 1, 1) -- White outline
+        highlight.FillTransparency = 0.5
         highlight.OutlineTransparency = 0
         highlight.Enabled = true
         
@@ -327,7 +324,7 @@ local function createESP(player)
     else
         character.ChildAdded:Connect(function(child)
             if child:IsA("Humanoid") then
-                wait(0.5)
+                wait(1)
                 setupESP()
             end
         end)
@@ -352,7 +349,7 @@ local function updateESP()
     end
 end
 
--- Universal Aimbot Functions
+-- FIXED: Universal Aimbot Functions
 local function getClosestEnemy()
     local closestPlayer = nil
     local closestDistance = math.huge
@@ -371,7 +368,7 @@ local function getClosestEnemy()
                 if VisibilityCheck and not isVisible(aimPart) then
                     -- Skip if not visible
                 else
-                    local distance = (localChar.Head.Position - aimPart.Position).Magnitude
+                    local distance = (getBodyPart(localChar, "Head").Position - aimPart.Position).Magnitude
                     if distance < closestDistance then
                         closestDistance = distance
                         closestPlayer = player
@@ -395,6 +392,14 @@ local function smoothAim(targetPosition)
     camera.CFrame = newCFrame
 end
 
+-- FIXED: GUI Functions
+local function toggleGUI()
+    MainFrame.Visible = not MainFrame.Visible
+    GUIHidden = not MainFrame.Visible
+    HideGUIToggle.Text = "Hide GUI: " .. (GUIHidden and "ON" or "OFF")
+    HideGUIToggle.BackgroundColor3 = GUIHidden and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(60, 60, 65)
+end
+
 -- Button Handlers
 AimbotToggle.MouseButton1Click:Connect(function()
     AimbotEnabled = not AimbotEnabled
@@ -409,6 +414,134 @@ ESPToggle.MouseButton1Click:Connect(function()
     updateESP()
 end)
 
--- Rest of your button handlers and functionality...
+StreamSafeToggle.MouseButton1Click:Connect(function()
+    StreamSafe = not StreamSafe
+    StreamSafeToggle.Text = "Stream Safe: " .. (StreamSafe and "ON" or "OFF")
+    StreamSafeToggle.BackgroundColor3 = StreamSafe and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
+end)
+
+VisibilityToggle.MouseButton1Click:Connect(function()
+    VisibilityCheck = not VisibilityCheck
+    VisibilityToggle.Text = "Visibility Check: " .. (VisibilityCheck and "ON" or "OFF")
+    VisibilityToggle.BackgroundColor3 = VisibilityCheck and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
+end)
+
+ScreenshotProtectionToggle.MouseButton1Click:Connect(function()
+    ScreenshotProtection = not ScreenshotProtection
+    ScreenshotProtectionToggle.Text = "Screenshot Protect: " .. (ScreenshotProtection and "ON" or "OFF")
+    ScreenshotProtectionToggle.BackgroundColor3 = ScreenshotProtection and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
+end)
+
+HideGUIToggle.MouseButton1Click:Connect(function()
+    toggleGUI()
+end)
+
+CloseButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    GUIHidden = true
+    HideGUIToggle.Text = "Hide GUI: ON"
+    HideGUIToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+end)
+
+AimPartButton.MouseButton1Click:Connect(function()
+    if AimPart == "Head" then
+        AimPart = "HumanoidRootPart"
+        AimPartButton.Text = "Aim Part: Torso"
+    else
+        AimPart = "Head"
+        AimPartButton.Text = "Aim Part: Head"
+    end
+end)
+
+-- FIXED: Key Binding
+KeyBindButton.MouseButton1Click:Connect(function()
+    KeyListening = true
+    KeyBindButton.Text = "Press any key..."
+    KeyBindButton.BackgroundColor3 = Color3.fromRGB(80, 80, 85)
+end)
+
+-- FIXED: Input handling with better error checking
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if KeyListening then
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            AimbotKey = input.KeyCode
+            KeyBindButton.Text = "Aim Key: " .. tostring(input.KeyCode):gsub("Enum.KeyCode.", "")
+        else
+            AimbotKey = input.UserInputType
+            KeyBindButton.Text = "Aim Key: " .. tostring(input.UserInputType):gsub("Enum.UserInputType.", "")
+        end
+        KeyBindButton.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
+        KeyListening = false
+        return
+    end
+    
+    -- FIXED: Delete key toggle
+    if input.KeyCode == ToggleKey then
+        toggleGUI()
+    end
+    
+    if (input.KeyCode == AimbotKey or input.UserInputType == AimbotKey) and AimbotEnabled then
+        AimbotActive = true
+        CurrentTarget = getClosestEnemy()
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessed)
+    if (input.KeyCode == AimbotKey or input.UserInputType == AimbotKey) then
+        AimbotActive = false
+        CurrentTarget = nil
+    end
+end)
+
+-- FIXED: Aimbot Loop
+RunService.Heartbeat:Connect(function()
+    if AimbotActive and AimbotEnabled then
+        local localChar = getCharacter(LocalPlayer)
+        if localChar and getBodyPart(localChar, "Head") then
+            local target = CurrentTarget or getClosestEnemy()
+            
+            if target then
+                local targetChar = getCharacter(target)
+                local aimPart = getBodyPart(targetChar, AimPart)
+                
+                if targetChar and aimPart then
+                    smoothAim(aimPart.Position)
+                    CurrentTarget = target
+                else
+                    CurrentTarget = nil
+                end
+            else
+                CurrentTarget = nil
+            end
+        end
+    end
+end)
+
+-- FIXED: Auto setup for players
+for _, player in pairs(Players:GetPlayers()) do
+    if player.Character then
+        spawn(function() 
+            wait(2) -- Wait longer for character to fully load
+            createESP(player) 
+        end)
+    end
+    player.CharacterAdded:Connect(function(character)
+        spawn(function() 
+            wait(2) -- Wait longer for character to fully load
+            createESP(player) 
+        end)
+    end)
+end
+
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        spawn(function()
+            wait(2) -- Wait longer for character to fully load
+            createESP(player)
+        end)
+    end)
+end)
 
 warn("xSaraap Hub Universal loaded successfully in " .. gameName)
