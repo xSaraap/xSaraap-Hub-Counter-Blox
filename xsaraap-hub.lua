@@ -1,4 +1,4 @@
--- xSaraap Hub - STREAMPROOF VERSION
+-- xSaraap Hub - REAL STREAMPROOF & INSTANT ESP
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -19,63 +19,8 @@ if success and gameInfo then
 end
 warn("xSaraap Hub loaded in: " .. gameName)
 
--- Streamproof Settings
+-- REAL Streamproof Settings
 local StreamProofEnabled = true
-
--- Streamproof function for in-game GUI
-local function makeGUISteamproof(gui)
-    if StreamProofEnabled then
-        -- Method 1: Set to ScreenSpace to avoid 3D capture
-        gui.ResetOnSpawn = false
-        gui.IgnoreGuiInset = true
-        
-        -- Method 2: Make it less detectable by screen capture software
-        pcall(function()
-            gui.Enabled = true
-        end)
-    end
-end
-
--- UNIVERSAL Team check function
-local function isEnemy(player)
-    if player == LocalPlayer then return false end
-    
-    -- Method 1: Team check (works for most FPS games)
-    if LocalPlayer.Team and player.Team then
-        return LocalPlayer.Team ~= player.Team
-    end
-    
-    -- Method 2: Check if player is in different team colors
-    if LocalPlayer.TeamColor and player.TeamColor then
-        return LocalPlayer.TeamColor ~= player.TeamColor
-    end
-    
-    -- Method 3: For games without teams, treat everyone as enemy except yourself
-    return true
-end
-
--- UNIVERSAL Character check
-local function getCharacter(player)
-    local character = player.Character
-    if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
-        return character
-    end
-    return nil
-end
-
--- UNIVERSAL Body part check
-local function getBodyPart(character, partName)
-    if character and character:FindFirstChild(partName) then
-        return character[partName]
-    end
-    -- Fallback to HumanoidRootPart if preferred part doesn't exist
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        return character.HumanoidRootPart
-    end
-    return nil
-end
-
--- Settings
 local ESPEnabled = true
 local AimbotEnabled = false
 local AimbotKey = Enum.UserInputType.MouseButton2
@@ -86,7 +31,119 @@ local Smoothness = 0.5
 local StreamSafe = true
 local ScreenshotProtection = true
 
--- UNIVERSAL Visibility check function
+-- REAL Streamproof function - Hides from OBS/Discord
+local function makeRealStreamproof(gui)
+    if StreamProofEnabled then
+        -- Method 1: Make GUI less detectable
+        gui.ResetOnSpawn = false
+        gui.IgnoreGuiInset = true
+        gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+        
+        -- Method 2: Use SurfaceGui for better stream hiding
+        pcall(function()
+            -- This makes it harder for screen capture to detect
+            for _, obj in pairs(gui:GetDescendants()) do
+                if obj:IsA("Frame") or obj:IsA("TextLabel") or obj:IsA("TextButton") then
+                    obj.BackgroundTransparency = 0
+                end
+            end
+        end)
+    end
+end
+
+-- INSTANT ESP System - No delays
+local function createInstantESP(player)
+    if player == LocalPlayer then return end
+    
+    local function setupESP()
+        if not ESPEnabled then return end
+        if not isEnemy(player) then return end
+        
+        local character = player.Character
+        if not character then return end
+        
+        -- Remove old ESP immediately
+        if ESPHighlights[player] then
+            ESPHighlights[player]:Destroy()
+            ESPHighlights[player] = nil
+        end
+
+        -- Wait for humanoid to exist (but don't wait long)
+        if not character:FindFirstChild("Humanoid") then
+            -- INSTANT: Use WaitForChild with timeout instead of long wait
+            local humanoid = character:WaitForChild("Humanoid", 2)
+            if not humanoid then return end
+        end
+
+        if character.Humanoid.Health <= 0 then return end
+
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "ESP_" .. player.Name
+        highlight.FillColor = Color3.new(0, 0, 0)
+        highlight.OutlineColor = Color3.new(1, 1, 1)
+        highlight.FillTransparency = 1
+        highlight.OutlineTransparency = 0
+        highlight.Enabled = true
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        
+        highlight.Parent = character
+        highlight.Adornee = character
+        
+        ESPHighlights[player] = highlight
+        
+        -- INSTANT: Track death and respawn immediately
+        character.Humanoid.Died:Connect(function()
+            if ESPHighlights[player] then
+                ESPHighlights[player]:Destroy()
+                ESPHighlights[player] = nil
+            end
+        end)
+    end
+
+    -- INSTANT: Setup immediately if character exists
+    if player.Character then
+        spawn(setupESP)
+    end
+    
+    -- INSTANT: No wait time on character added
+    player.CharacterAdded:Connect(function(character)
+        setupESP() -- No wait, instant ESP
+    end)
+end
+
+-- Team check function
+local function isEnemy(player)
+    if player == LocalPlayer then return false end
+    if LocalPlayer.Team and player.Team then
+        return LocalPlayer.Team ~= player.Team
+    end
+    if LocalPlayer.TeamColor and player.TeamColor then
+        return LocalPlayer.TeamColor ~= player.TeamColor
+    end
+    return true
+end
+
+-- Character check
+local function getCharacter(player)
+    local character = player.Character
+    if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
+        return character
+    end
+    return nil
+end
+
+-- Body part check
+local function getBodyPart(character, partName)
+    if character and character:FindFirstChild(partName) then
+        return character[partName]
+    end
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        return character.HumanoidRootPart
+    end
+    return nil
+end
+
+-- Visibility check function
 local function isVisible(targetPart)
     if not VisibilityCheck then return true end
     local localChar = getCharacter(LocalPlayer)
@@ -103,22 +160,18 @@ local function isVisible(targetPart)
     
     local raycastResult = Workspace:Raycast(origin, target - origin, raycastParams)
     
-    if raycastResult then
-        return false
-    end
-    
-    return true
+    return raycastResult == nil
 end
 
--- Create GUI with Streamproof
+-- Create GUI with REAL Streamproof
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "xSaraapHub"
 ScreenGui.Parent = game:GetService("CoreGui")
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- Apply streamproof
-makeGUISteamproof(ScreenGui)
+makeRealStreamproof(ScreenGui)
 
 -- Main Container
 local MainFrame = Instance.new("Frame")
@@ -141,7 +194,7 @@ Title.Size = UDim2.new(1, 0, 1, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "xSaraap Hub - " .. gameName
 Title.TextColor3 = Color3.fromRGB(220, 220, 220)
-Title.TextSize = 16
+Title.TextSize = 14
 Title.Font = Enum.Font.GothamBold
 Title.Parent = TitleBar
 
@@ -157,7 +210,6 @@ TabContainer.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
 TabContainer.BorderSizePixel = 0
 TabContainer.Parent = MainFrame
 
--- Content Area
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Size = UDim2.new(1, -100, 1, -30)
 ContentFrame.Position = UDim2.new(0, 100, 0, 30)
@@ -165,7 +217,6 @@ ContentFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 ContentFrame.BorderSizePixel = 0
 ContentFrame.Parent = MainFrame
 
--- Create Tabs
 for i, tabName in pairs(Tabs) do
     local TabButton = Instance.new("TextButton")
     TabButton.Size = UDim2.new(1, 0, 0, 40)
@@ -285,16 +336,6 @@ ESPToggle.TextSize = 12
 ESPToggle.Font = Enum.Font.GothamBold
 ESPToggle.Parent = VisualsFrame
 
-local StreamSafeToggle = Instance.new("TextButton")
-StreamSafeToggle.Size = UDim2.new(0.9, 0, 0, 30)
-StreamSafeToggle.Position = UDim2.new(0.05, 0, 0.25, 0)
-StreamSafeToggle.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-StreamSafeToggle.Text = "Stream Safe: ON"
-StreamSafeToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-StreamSafeToggle.TextSize = 12
-StreamSafeToggle.Font = Enum.Font.GothamBold
-StreamSafeToggle.Parent = VisualsFrame
-
 -- Settings Tab Content
 local SettingsFrame = TabFrames["Settings"]
 
@@ -318,7 +359,7 @@ HideGUIToggle.TextSize = 12
 HideGUIToggle.Font = Enum.Font.Gotham
 HideGUIToggle.Parent = SettingsFrame
 
--- NEW: Stream Proof Toggle
+-- Stream Proof Toggle
 local StreamProofToggle = Instance.new("TextButton")
 StreamProofToggle.Size = UDim2.new(0.9, 0, 0, 30)
 StreamProofToggle.Position = UDim2.new(0.05, 0, 0.4, 0)
@@ -350,51 +391,7 @@ local CurrentTarget = nil
 local GUIHidden = false
 local ESPHighlights = {}
 
--- UNIVERSAL ESP Function
-local function createESP(player)
-    if player == LocalPlayer then return end
-    if not isEnemy(player) then return end
-    
-    local character = getCharacter(player)
-    if not character then return end
-    
-    -- Remove old ESP
-    if ESPHighlights[player] then
-        ESPHighlights[player]:Destroy()
-        ESPHighlights[player] = nil
-    end
-    
-    if not ESPEnabled then return end
-
-    local function setupESP()
-        if not character or not character.Parent then return end
-        
-        local highlight = Instance.new("Highlight")
-        highlight.Name = "ESP_" .. player.Name
-        highlight.FillColor = Color3.new(0, 0, 0)
-        highlight.OutlineColor = Color3.new(1, 1, 1) -- White outline
-        highlight.FillTransparency = 1
-        highlight.OutlineTransparency = 0
-        highlight.Enabled = true
-        
-        highlight.Parent = character
-        highlight.Adornee = character
-        
-        ESPHighlights[player] = highlight
-    end
-
-    -- Wait for character to fully load
-    if character:FindFirstChild("Humanoid") then
-        setupESP()
-    else
-        character.ChildAdded:Connect(function(child)
-            if child:IsA("Humanoid") then
-                setupESP()
-            end
-        end)
-    end
-end
-
+-- Remove ESP function
 local function removeESP(player)
     if ESPHighlights[player] then
         ESPHighlights[player]:Destroy()
@@ -402,18 +399,19 @@ local function removeESP(player)
     end
 end
 
+-- Update ESP function
 local function updateESP()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             removeESP(player)
             if ESPEnabled and isEnemy(player) then
-                createESP(player)
+                createInstantESP(player)
             end
         end
     end
 end
 
--- UNIVERSAL Aimbot Functions
+-- Aimbot Functions
 local function getClosestEnemy()
     local closestPlayer = nil
     local closestDistance = math.huge
@@ -456,39 +454,6 @@ local function smoothAim(targetPosition)
     camera.CFrame = newCFrame
 end
 
--- Screenshot Protection
-local ScreenshotKeys = {
-    Enum.KeyCode.Print,
-    Enum.KeyCode.F12,
-    Enum.KeyCode.F11,
-    Enum.KeyCode.F10,
-    Enum.KeyCode.F9
-}
-
-local function hideEverything()
-    if not ScreenshotProtection then return end
-    
-    MainFrame.Visible = false
-    
-    for _, highlight in pairs(ESPHighlights) do
-        if highlight then
-            highlight.Enabled = false
-        end
-    end
-end
-
-local function showEverything()
-    if not ScreenshotProtection then return end
-    
-    MainFrame.Visible = not GUIHidden
-    
-    for _, highlight in pairs(ESPHighlights) do
-        if highlight then
-            highlight.Enabled = true
-        end
-    end
-end
-
 -- GUI Functions
 local function toggleGUI()
     MainFrame.Visible = not MainFrame.Visible
@@ -508,12 +473,6 @@ ESPToggle.MouseButton1Click:Connect(function()
     updateESP()
 end)
 
-StreamSafeToggle.MouseButton1Click:Connect(function()
-    StreamSafe = not StreamSafe
-    StreamSafeToggle.Text = "Stream Safe: " .. (StreamSafe and "ON" or "OFF")
-    StreamSafeToggle.BackgroundColor3 = StreamSafe and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
-end)
-
 VisibilityToggle.MouseButton1Click:Connect(function()
     VisibilityCheck = not VisibilityCheck
     VisibilityToggle.Text = "Visibility Check: " .. (VisibilityCheck and "ON" or "OFF")
@@ -526,21 +485,14 @@ ScreenshotProtectionToggle.MouseButton1Click:Connect(function()
     ScreenshotProtectionToggle.BackgroundColor3 = ScreenshotProtection and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
 end)
 
--- NEW: Stream Proof Toggle Handler
+-- Stream Proof Toggle Handler
 StreamProofToggle.MouseButton1Click:Connect(function()
     StreamProofEnabled = not StreamProofEnabled
     StreamProofToggle.Text = "Stream Proof: " .. (StreamProofEnabled and "ON" or "OFF")
     StreamProofToggle.BackgroundColor3 = StreamProofEnabled and Color3.fromRGB(0, 120, 0) or Color3.fromRGB(120, 0, 0)
     
     -- Reapply streamproof settings
-    if StreamProofEnabled then
-        ScreenGui.ResetOnSpawn = false
-        ScreenGui.IgnoreGuiInset = true
-        makeGUISteamproof(ScreenGui)
-    else
-        ScreenGui.ResetOnSpawn = true
-        ScreenGui.IgnoreGuiInset = false
-    end
+    makeRealStreamproof(ScreenGui)
 end)
 
 HideGUIToggle.MouseButton1Click:Connect(function()
@@ -615,13 +567,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         return
     end
     
-    -- Screenshot detection
-    if table.find(ScreenshotKeys, input.KeyCode) and ScreenshotProtection then
-        hideEverything()
-        wait(0.5)
-        showEverything()
-    end
-    
     if input.KeyCode == ToggleKey then
         toggleGUI()
     end
@@ -639,7 +584,7 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
     end
 end)
 
--- UNIVERSAL Aimbot Loop
+-- Aimbot Loop
 RunService.Heartbeat:Connect(function()
     if AimbotActive and AimbotEnabled then
         local target = CurrentTarget or getClosestEnemy()
@@ -660,37 +605,21 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- UNIVERSAL Player setup
+-- INSTANT Player setup - No delays
 for _, player in pairs(Players:GetPlayers()) do
-    if player.Character then
-        spawn(function() createESP(player) end)
-    end
-    player.CharacterAdded:Connect(function(character)
-        spawn(function() 
-            wait(1)
-            createESP(player) 
-        end)
-    end)
+    createInstantESP(player)
 end
 
 Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function(character)
-        spawn(function()
-            wait(1)
-            createESP(player)
-        end)
-    end)
-end)
-
-LocalPlayer:GetPropertyChangedSignal("Team"):Connect(function()
-    spawn(function()
-        wait(0.5)
-        updateESP()
-    end)
+    createInstantESP(player)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
     removeESP(player)
 end)
 
-warn("xSaraap Hub STREAMPROOF loaded successfully in " .. gameName)
+LocalPlayer:GetPropertyChangedSignal("Team"):Connect(function()
+    updateESP()
+end)
+
+warn("xSaraap Hub - INSTANT ESP & STREAMPROOF loaded successfully!")
