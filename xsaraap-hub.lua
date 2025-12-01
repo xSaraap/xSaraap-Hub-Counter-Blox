@@ -32,7 +32,6 @@ local AimPart = "Head"
 local VisibilityCheck = true
 local Smoothness = 0.5
 local ScreenshotProtection = true
-local TriggerbotDelay = 0.2
 local LastShotTime = 0
 local IsDragging = false
 local DragStartPos = UDim2.new()
@@ -461,9 +460,10 @@ local AimbotActive = false
 local CurrentTarget = nil
 local GUIHidden = false
 local ESPHighlights = {}
-local IsRapidFiring = false
+local IsShooting = false
 local BurstCount = 0
 local LastBurstTime = 0
+local LastTargetTime = 0
 
 -- Make GUI draggable
 TitleBar.InputBegan:Connect(function(input)
@@ -626,10 +626,9 @@ local function smoothAim(targetPosition)
     camera.CFrame = newCFrame
 end
 
--- TRIGGERBOT FUNCTION with different modes
-local function triggerbotShoot()
-    if not TriggerbotEnabled then return end
-    if not LocalPlayer.Character then return end
+-- Check if crosshair is on player
+local function isCrosshairOnPlayer()
+    if not LocalPlayer.Character then return false end
     
     local camera = Workspace.CurrentCamera
     local mousePos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
@@ -651,75 +650,82 @@ local function triggerbotShoot()
             local humanoid = hitCharacter:FindFirstChild("Humanoid")
             local hitPlayer = Players:GetPlayerFromCharacter(hitCharacter)
             
-            -- Check if hit player is an enemy
+            -- Check if hit player is an enemy and alive
             if hitPlayer and isEnemy(hitPlayer) and humanoid.Health > 0 then
                 -- Check visibility if enabled
                 if VisibilityCheck and not isVisible(hitPart) then
-                    IsRapidFiring = false
-                    BurstCount = 0
-                    return
+                    return false
                 end
-                
-                local currentTime = tick()
-                
-                if TriggerbotMode == "Tap" then
-                    -- Tap mode: Single shot every 0.2 seconds
-                    if currentTime - LastShotTime > TriggerbotDelay then
-                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                        task.wait(0.05)
-                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-                        LastShotTime = currentTime
-                    end
-                    
-                elseif TriggerbotMode == "Burst" then
-                    -- Burst mode: 3-4 shots in quick succession
-                    if BurstCount == 0 then
-                        -- Start new burst
-                        BurstCount = 1
-                        LastBurstTime = currentTime
-                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                        task.wait(0.05)
-                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-                    elseif BurstCount < 4 and currentTime - LastBurstTime > 0.1 then
-                        -- Continue burst
-                        BurstCount = BurstCount + 1
-                        LastBurstTime = currentTime
-                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                        task.wait(0.05)
-                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-                    elseif BurstCount >= 4 and currentTime - LastBurstTime > TriggerbotDelay then
-                        -- Reset burst after delay
-                        BurstCount = 0
-                    end
-                    
-                elseif TriggerbotMode == "Rapid" then
-                    -- Rapid mode: Continuous firing
-                    if not IsRapidFiring then
-                        IsRapidFiring = true
-                    end
-                    
-                    -- Keep mouse button pressed
-                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                    return -- Don't release mouse button in rapid mode
-                    
-                end
-            else
-                -- Target is not valid, reset states
-                IsRapidFiring = false
-                BurstCount = 0
-                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                return true
             end
-        else
-            -- Not hitting an enemy, reset states
-            IsRapidFiring = false
-            BurstCount = 0
-            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+        end
+    end
+    return false
+end
+
+-- TRIGGERBOT FUNCTION (REAL TRIGGERBOT)
+local function triggerbotShoot()
+    if not TriggerbotEnabled then return end
+    if not LocalPlayer.Character then return end
+    
+    local currentTime = tick()
+    
+    -- Check if crosshair is on a player
+    local targetOnCrosshair = isCrosshairOnPlayer()
+    
+    if targetOnCrosshair then
+        LastTargetTime = currentTime
+        
+        if TriggerbotMode == "Tap" then
+            -- Tap mode: Single shot when crosshair is on target (with delay)
+            if currentTime - LastShotTime > 0.2 then
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                task.wait(0.05)
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                LastShotTime = currentTime
+            end
+            
+        elseif TriggerbotMode == "Burst" then
+            -- Burst mode: Fire 3-4 shots when crosshair is on target
+            if BurstCount == 0 then
+                -- Start new burst
+                BurstCount = 1
+                LastBurstTime = currentTime
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                task.wait(0.05)
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            elseif BurstCount < 4 and currentTime - LastBurstTime > 0.1 then
+                -- Continue burst
+                BurstCount = BurstCount + 1
+                LastBurstTime = currentTime
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                task.wait(0.05)
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            elseif BurstCount >= 4 and currentTime - LastBurstTime > 0.5 then
+                -- Reset burst after delay
+                BurstCount = 0
+            end
+            
+        elseif TriggerbotMode == "Rapid" then
+            -- Rapid mode: Rapid fire while crosshair is on target
+            if not IsShooting then
+                IsShooting = true
+            end
+            
+            -- Keep mouse button pressed
+            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+            
         end
     else
-        -- Not hitting anything, reset states
-        IsRapidFiring = false
-        BurstCount = 0
-        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+        -- Crosshair is NOT on a player
+        if TriggerbotMode == "Rapid" and IsShooting then
+            -- Release mouse button in rapid mode
+            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            IsShooting = false
+        elseif TriggerbotMode == "Burst" and currentTime - LastTargetTime > 1.0 then
+            -- Reset burst if no target for 1 second
+            BurstCount = 0
+        end
     end
 end
 
@@ -878,16 +884,28 @@ end
 TapButton.MouseButton1Click:Connect(function()
     TriggerbotMode = "Tap"
     updateTriggerbotModeButtons()
+    -- Reset shooting state
+    IsShooting = false
+    BurstCount = 0
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
 end)
 
 BurstButton.MouseButton1Click:Connect(function()
     TriggerbotMode = "Burst"
     updateTriggerbotModeButtons()
+    -- Reset shooting state
+    IsShooting = false
+    BurstCount = 0
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
 end)
 
 RapidButton.MouseButton1Click:Connect(function()
     TriggerbotMode = "Rapid"
     updateTriggerbotModeButtons()
+    -- Reset shooting state
+    IsShooting = false
+    BurstCount = 0
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
 end)
 
 -- Initialize triggerbot mode buttons
@@ -1042,15 +1060,15 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Triggerbot Loop
+-- Triggerbot Loop (REAL TRIGGERBOT)
 RunService.Heartbeat:Connect(function()
     if TriggerbotEnabled and LocalPlayer.Character then
         triggerbotShoot()
     else
         -- Release mouse button if triggerbot is disabled
-        if IsRapidFiring then
+        if IsShooting then
             VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-            IsRapidFiring = false
+            IsShooting = false
             BurstCount = 0
         end
     end
@@ -1062,8 +1080,9 @@ LocalPlayer.CharacterAdded:Connect(function()
     AimbotActive = false
     CurrentTarget = nil
     LastShotTime = 0
-    IsRapidFiring = false
+    IsShooting = false
     BurstCount = 0
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
 end)
 
 LocalPlayer.CharacterRemoving:Connect(function()
@@ -1071,8 +1090,9 @@ LocalPlayer.CharacterRemoving:Connect(function()
     AimbotActive = false
     CurrentTarget = nil
     LastShotTime = 0
-    IsRapidFiring = false
+    IsShooting = false
     BurstCount = 0
+    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
 end)
 
 -- Update status bar with performance info
