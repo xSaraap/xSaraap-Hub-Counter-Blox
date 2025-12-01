@@ -45,10 +45,14 @@ local function isEnemy(player)
     return true
 end
 
--- Visibility check function
+-- Visibility check function (FIXED)
 local function isVisible(targetPart)
-    if not VisibilityCheck then return true end
-    if not LocalPlayer.Character then return false end
+    if not VisibilityCheck then 
+        return true  -- Skip visibility check if turned off
+    end
+    if not LocalPlayer.Character then 
+        return false 
+    end
     
     local camera = Workspace.CurrentCamera
     local origin = camera.CFrame.Position
@@ -56,7 +60,17 @@ local function isVisible(targetPart)
     
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, targetPart.Parent}
+    
+    -- Make sure we don't include nil values
+    local filterInstances = {}
+    if LocalPlayer.Character then
+        table.insert(filterInstances, LocalPlayer.Character)
+    end
+    if targetPart.Parent then
+        table.insert(filterInstances, targetPart.Parent)
+    end
+    
+    raycastParams.FilterDescendantsInstances = filterInstances
     raycastParams.IgnoreWater = true
     
     local raycastResult = Workspace:Raycast(origin, target - origin, raycastParams)
@@ -808,6 +822,7 @@ ESPToggleData.Button.MouseButton1Click:Connect(function()
     updateESP()
 end)
 
+-- FIXED VISIBILITY TOGGLE
 VisibilityToggleData.Button.MouseButton1Click:Connect(function()
     VisibilityCheck = not VisibilityCheck
     VisibilityToggleData.Label.Text = "Visibility Check: " .. (VisibilityCheck and "ON" or "OFF")
@@ -819,6 +834,11 @@ VisibilityToggleData.Button.MouseButton1Click:Connect(function()
         TweenService:Create(VisibilityToggleData.Button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(120, 0, 0)}):Play()
         TweenService:Create(VisibilityToggleData.Knob, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0, 2)}):Play()
     end
+    
+    -- Update ESP when visibility check changes
+    updateESP()
+    
+    print("Visibility Check:", VisibilityCheck and "ON" or "OFF")
 end)
 
 ScreenshotProtectionToggleData.Button.MouseButton1Click:Connect(function()
