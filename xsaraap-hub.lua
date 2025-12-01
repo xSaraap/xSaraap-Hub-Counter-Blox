@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 
 -- Game Detection
@@ -22,13 +23,14 @@ end)
 -- Settings
 local ESPEnabled = true
 local AimbotEnabled = false
+local TriggerbotEnabled = false
 local AimbotKey = Enum.UserInputType.MouseButton2
 local ToggleKey = Enum.KeyCode.Delete
 local AimPart = "Head"
 local VisibilityCheck = true
 local Smoothness = 0.5
-local StreamSafe = true
 local ScreenshotProtection = true
+local TriggerbotDelay = 0.2
 
 -- Team check function
 local function isEnemy(player)
@@ -110,7 +112,7 @@ local VersionLabel = Instance.new("TextLabel")
 VersionLabel.Size = UDim2.new(0, 60, 1, 0)
 VersionLabel.Position = UDim2.new(1, -70, 0, 0)
 VersionLabel.BackgroundTransparency = 1
-VersionLabel.Text = "v2.1"
+VersionLabel.Text = "v2.2"
 VersionLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
 VersionLabel.TextSize = 12
 VersionLabel.Font = Enum.Font.Gotham
@@ -269,14 +271,15 @@ SectionTitle1.TextXAlignment = Enum.TextXAlignment.Left
 SectionTitle1.Parent = AimbotFrame
 
 local AimbotToggleData = createModernToggle("Aimbot: OFF", UDim2.new(0.05, 0, 0.12, 0), AimbotFrame)
-local KeyBindButton = createModernButton("Aim Key: RMB", UDim2.new(0.05, 0, 0.22, 0), AimbotFrame)
-local AimPartButton = createModernButton("Aim Part: Head", UDim2.new(0.05, 0, 0.32, 0), AimbotFrame)
-local VisibilityToggleData = createModernToggle("Visibility Check: ON", UDim2.new(0.05, 0, 0.42, 0), AimbotFrame)
+local TriggerbotToggleData = createModernToggle("Triggerbot: OFF", UDim2.new(0.05, 0, 0.22, 0), AimbotFrame)
+local KeyBindButton = createModernButton("Aim Key: RMB", UDim2.new(0.05, 0, 0.32, 0), AimbotFrame)
+local AimPartButton = createModernButton("Aim Part: Head", UDim2.new(0.05, 0, 0.42, 0), AimbotFrame)
+local VisibilityToggleData = createModernToggle("Visibility Check: ON", UDim2.new(0.05, 0, 0.52, 0), AimbotFrame)
 
 -- Enhanced Smoothness Slider
 local SmoothnessFrame = Instance.new("Frame")
 SmoothnessFrame.Size = UDim2.new(0.9, 0, 0, 60)
-SmoothnessFrame.Position = UDim2.new(0.05, 0, 0.55, 0)
+SmoothnessFrame.Position = UDim2.new(0.05, 0, 0.65, 0)
 SmoothnessFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 SmoothnessFrame.BorderSizePixel = 0
 SmoothnessFrame.Parent = AimbotFrame
@@ -342,7 +345,6 @@ SectionTitle2.TextXAlignment = Enum.TextXAlignment.Left
 SectionTitle2.Parent = VisualsFrame
 
 local ESPToggleData = createModernToggle("ESP: ON", UDim2.new(0.05, 0, 0.12, 0), VisualsFrame)
-local StreamSafeToggleData = createModernToggle("Stream Safe: ON", UDim2.new(0.05, 0, 0.22, 0), VisualsFrame)
 
 -- Enhanced Settings Tab Content
 local SettingsFrame = TabFrames["Settings"]
@@ -409,8 +411,9 @@ local AimbotActive = false
 local CurrentTarget = nil
 local GUIHidden = false
 local ESPHighlights = {}
+local LastShotTime = 0
 
--- ESP Function (FIXED)
+-- ESP Function (UNLIMITED RANGE)
 local function createESP(player)
     if player == LocalPlayer then return end
     if not isEnemy(player) then return end
@@ -437,9 +440,22 @@ local function createESP(player)
         highlight.OutlineTransparency = 0
         highlight.Enabled = true
         
-        -- FIXED: Always parent to character for ESP to work
-        highlight.Parent = character
+        -- NO RANGE LIMIT: Always visible regardless of distance
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
         highlight.Adornee = character
+        
+        -- Parent to player's character for unlimited range
+        highlight.Parent = character
+        
+        -- Ensure it stays enabled even when far away
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.Died:Connect(function()
+                if highlight then
+                    highlight:Destroy()
+                end
+            end)
+        end
         
         ESPHighlights[player] = highlight
     end
@@ -455,6 +471,14 @@ local function createESP(player)
             end
         end)
     end
+    
+    -- Handle character respawns
+    player.CharacterAdded:Connect(function(newCharacter)
+        wait(1) -- Wait for character to load
+        if ESPEnabled and isEnemy(player) then
+            setupESP()
+        end
+    end)
 end
 
 local function removeESP(player)
@@ -475,7 +499,7 @@ local function updateESP()
     end
 end
 
--- Aimbot Functions (FIXED)
+-- Aimbot Functions (UPDATED)
 local function getClosestEnemy()
     local closestPlayer = nil
     local closestDistance = math.huge
@@ -484,17 +508,20 @@ local function getClosestEnemy()
         return nil
     end
     
+    local myHead = LocalPlayer.Character.Head
+    
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and isEnemy(player) and player.Character then
             local character = player.Character
             local humanoid = character:FindFirstChild("Humanoid")
             local aimPart = character:FindFirstChild(AimPart)
             
+            -- Only consider alive players
             if humanoid and humanoid.Health > 0 and aimPart then
                 if VisibilityCheck and not isVisible(aimPart) then
                     -- Skip if not visible
                 else
-                    local distance = (LocalPlayer.Character.Head.Position - aimPart.Position).Magnitude
+                    local distance = (myHead.Position - aimPart.Position).Magnitude
                     if distance < closestDistance then
                         closestDistance = distance
                         closestPlayer = player
@@ -516,6 +543,52 @@ local function smoothAim(targetPosition)
     local newCFrame = currentCFrame:Lerp(targetCFrame, 1 - smoothFactor)
     
     camera.CFrame = newCFrame
+end
+
+-- TRIGGERBOT FUNCTION (AUTO-SHOOT)
+local function triggerbotShoot()
+    if not TriggerbotEnabled then return end
+    if not LocalPlayer.Character then return end
+    
+    local camera = Workspace.CurrentCamera
+    local mousePos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+    
+    -- Create ray from center of screen
+    local unitRay = camera:ViewportPointToRay(mousePos.X, mousePos.Y)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    raycastParams.IgnoreWater = true
+    
+    local raycastResult = Workspace:Raycast(unitRay.Origin, unitRay.Direction * 1000, raycastParams)
+    
+    if raycastResult and raycastResult.Instance then
+        local hitPart = raycastResult.Instance
+        local hitCharacter = hitPart.Parent
+        
+        if hitCharacter and hitCharacter:FindFirstChild("Humanoid") then
+            local humanoid = hitCharacter:FindFirstChild("Humanoid")
+            local hitPlayer = Players:GetPlayerFromCharacter(hitCharacter)
+            
+            -- Check if hit player is an enemy
+            if hitPlayer and isEnemy(hitPlayer) and humanoid.Health > 0 then
+                -- Check visibility if enabled
+                if VisibilityCheck and not isVisible(hitPart) then
+                    return
+                end
+                
+                -- Check delay to prevent spamming
+                local currentTime = tick()
+                if currentTime - LastShotTime > TriggerbotDelay then
+                    -- Simulate mouse click (press and release)
+                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                    task.wait(0.05) -- Very short press
+                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                    LastShotTime = currentTime
+                end
+            end
+        end
+    end
 end
 
 -- Screenshot Protection
@@ -570,6 +643,19 @@ AimbotToggleData.Button.MouseButton1Click:Connect(function()
     end
 end)
 
+TriggerbotToggleData.Button.MouseButton1Click:Connect(function()
+    TriggerbotEnabled = not TriggerbotEnabled
+    TriggerbotToggleData.Label.Text = "Triggerbot: " .. (TriggerbotEnabled and "ON" or "OFF")
+    
+    if TriggerbotEnabled then
+        TweenService:Create(TriggerbotToggleData.Button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 120, 0)}):Play()
+        TweenService:Create(TriggerbotToggleData.Knob, TweenInfo.new(0.2), {Position = UDim2.new(1, -18, 0, 2)}):Play()
+    else
+        TweenService:Create(TriggerbotToggleData.Button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(120, 0, 0)}):Play()
+        TweenService:Create(TriggerbotToggleData.Knob, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0, 2)}):Play()
+    end
+end)
+
 ESPToggleData.Button.MouseButton1Click:Connect(function()
     ESPEnabled = not ESPEnabled
     ESPToggleData.Label.Text = "ESP: " .. (ESPEnabled and "ON" or "OFF")
@@ -582,19 +668,6 @@ ESPToggleData.Button.MouseButton1Click:Connect(function()
         TweenService:Create(ESPToggleData.Knob, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0, 2)}):Play()
     end
     updateESP()
-end)
-
-StreamSafeToggleData.Button.MouseButton1Click:Connect(function()
-    StreamSafe = not StreamSafe
-    StreamSafeToggleData.Label.Text = "Stream Safe: " .. (StreamSafe and "ON" or "OFF")
-    
-    if StreamSafe then
-        TweenService:Create(StreamSafeToggleData.Button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(0, 120, 0)}):Play()
-        TweenService:Create(StreamSafeToggleData.Knob, TweenInfo.new(0.2), {Position = UDim2.new(1, -18, 0, 2)}):Play()
-    else
-        TweenService:Create(StreamSafeToggleData.Button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(120, 0, 0)}):Play()
-        TweenService:Create(StreamSafeToggleData.Knob, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0, 2)}):Play()
-    end
 end)
 
 VisibilityToggleData.Button.MouseButton1Click:Connect(function()
@@ -728,23 +801,69 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
     end
 end)
 
--- Aimbot Loop
+-- Aimbot Loop (UPDATED)
 RunService.Heartbeat:Connect(function()
     if AimbotActive and AimbotEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
-        local target = CurrentTarget or getClosestEnemy()
+        -- Check if current target is still valid
+        local targetIsValid = false
         
-        if target and target.Character then
-            local aimPart = target.Character:FindFirstChild(AimPart)
-            if aimPart then
-                smoothAim(aimPart.Position)
-                CurrentTarget = target
-            else
-                CurrentTarget = nil
+        if CurrentTarget and CurrentTarget.Character then
+            local humanoid = CurrentTarget.Character:FindFirstChild("Humanoid")
+            local aimPart = CurrentTarget.Character:FindFirstChild(AimPart)
+            
+            -- Check if target is alive and has the aim part
+            if humanoid and humanoid.Health > 0 and aimPart then
+                if not VisibilityCheck or isVisible(aimPart) then
+                    targetIsValid = true
+                end
             end
+        end
+        
+        -- If current target is not valid, find a new one
+        if not targetIsValid then
+            CurrentTarget = getClosestEnemy()
+            
+            -- If no valid target found, cancel aimbot
+            if not CurrentTarget then
+                AimbotActive = false
+                return
+            end
+        end
+        
+        -- Aim at the valid target
+        local aimPart = CurrentTarget.Character:FindFirstChild(AimPart)
+        if aimPart then
+            smoothAim(aimPart.Position)
         else
-            CurrentTarget = nil
+            -- If aim part is missing, find new target
+            CurrentTarget = getClosestEnemy()
+            if not CurrentTarget then
+                AimbotActive = false
+            end
         end
     end
+end)
+
+-- Triggerbot Loop (AUTO-SHOOT)
+RunService.Heartbeat:Connect(function()
+    if TriggerbotEnabled and LocalPlayer.Character then
+        triggerbotShoot()
+    end
+end)
+
+-- Optional: Add a cleanup function to reset when character dies
+LocalPlayer.CharacterAdded:Connect(function()
+    -- Reset aimbot when respawning
+    AimbotActive = false
+    CurrentTarget = nil
+    LastShotTime = 0
+end)
+
+LocalPlayer.CharacterRemoving:Connect(function()
+    -- Clean up when character is removed
+    AimbotActive = false
+    CurrentTarget = nil
+    LastShotTime = 0
 end)
 
 -- Update status bar with performance info
