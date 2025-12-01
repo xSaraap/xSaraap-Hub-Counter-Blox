@@ -45,21 +45,25 @@ local function isEnemy(player)
     return true
 end
 
--- Debug function to test visibility
-local function testVisibility()
-    if not LocalPlayer.Character then return end
+-- Visibility check function
+local function isVisible(targetPart)
+    if not VisibilityCheck then return true end
+    if not LocalPlayer.Character then return false end
     
-    local target = getClosestEnemy()
-    if target and target.Character then
-        local aimPart = target.Character:FindFirstChild("Head")
-        if aimPart then
-            local visible = isVisible(aimPart)
-            print("Target:", target.Name, "| Visible:", visible)
-            return visible
-        end
+    local camera = Workspace.CurrentCamera
+    local origin = camera.CFrame.Position
+    local target = targetPart.Position
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, targetPart.Parent}
+    raycastParams.IgnoreWater = true
+    
+    local raycastResult = Workspace:Raycast(origin, target - origin, raycastParams)
+    
+    if raycastResult then
+        return false
     end
-    return false
-end
     
     return true
 end
