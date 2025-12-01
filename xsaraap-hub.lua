@@ -9,6 +9,7 @@ local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
 -- Game Detection
@@ -24,6 +25,7 @@ end)
 local ESPEnabled = true
 local AimbotEnabled = false
 local TriggerbotEnabled = false
+local TriggerbotMode = "Tap" -- "Tap", "Burst", "Rapid"
 local AimbotKey = Enum.UserInputType.MouseButton2
 local ToggleKey = Enum.KeyCode.Delete
 local AimPart = "Head"
@@ -31,6 +33,10 @@ local VisibilityCheck = true
 local Smoothness = 0.5
 local ScreenshotProtection = true
 local TriggerbotDelay = 0.2
+local LastShotTime = 0
+local IsDragging = false
+local DragStartPos = UDim2.new()
+local GUIStartPos = UDim2.new()
 
 -- Team check function
 local function isEnemy(player)
@@ -71,12 +77,14 @@ ScreenGui.Parent = game:GetService("CoreGui")
 
 -- Main Container with modern design
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 450, 0, 500)
-MainFrame.Position = UDim2.new(0.5, -225, 0.5, -250)
+MainFrame.Size = UDim2.new(0, 500, 0, 550)
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -275)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
 MainFrame.Visible = true
+MainFrame.Active = true
+MainFrame.Selectable = true
 MainFrame.Parent = ScreenGui
 
 -- Modern corner rounding
@@ -84,9 +92,9 @@ local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 8)
 UICorner.Parent = MainFrame
 
--- Enhanced Title Bar with game name
+-- Enhanced Title Bar with game name (now draggable)
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.Size = UDim2.new(1, 0, 0, 50)
 TitleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 TitleBar.BorderSizePixel = 0
 TitleBar.ZIndex = 2
@@ -96,9 +104,18 @@ local TitleBarCorner = Instance.new("UICorner")
 TitleBarCorner.CornerRadius = UDim.new(0, 8)
 TitleBarCorner.Parent = TitleBar
 
+-- Logo Image
+local LogoImage = Instance.new("ImageLabel")
+LogoImage.Size = UDim2.new(0, 40, 0, 40)
+LogoImage.Position = UDim2.new(0, 10, 0.5, -20)
+LogoImage.BackgroundTransparency = 1
+LogoImage.Image = "https://mir-s3-cdn-cf.behance.net/project_modules/1400/7064f8105512449.5f7b1e51a8e7a.jpg"
+LogoImage.ZIndex = 3
+LogoImage.Parent = TitleBar
+
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -20, 1, 0)
-Title.Position = UDim2.new(0, 10, 0, 0)
+Title.Size = UDim2.new(1, -60, 1, 0)
+Title.Position = UDim2.new(0, 60, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "SFPS Hub - " .. GameName
 Title.TextColor3 = Color3.fromRGB(240, 240, 240)
@@ -112,7 +129,7 @@ local VersionLabel = Instance.new("TextLabel")
 VersionLabel.Size = UDim2.new(0, 60, 1, 0)
 VersionLabel.Position = UDim2.new(1, -70, 0, 0)
 VersionLabel.BackgroundTransparency = 1
-VersionLabel.Text = "v2.2"
+VersionLabel.Text = "v2.3"
 VersionLabel.TextColor3 = Color3.fromRGB(180, 180, 200)
 VersionLabel.TextSize = 12
 VersionLabel.Font = Enum.Font.Gotham
@@ -125,8 +142,8 @@ local TabButtons = {}
 local TabFrames = {}
 
 local TabContainer = Instance.new("Frame")
-TabContainer.Size = UDim2.new(0, 120, 1, -40)
-TabContainer.Position = UDim2.new(0, 0, 0, 40)
+TabContainer.Size = UDim2.new(0, 130, 1, -50)
+TabContainer.Position = UDim2.new(0, 0, 0, 50)
 TabContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 TabContainer.BorderSizePixel = 0
 TabContainer.ZIndex = 2
@@ -138,8 +155,8 @@ TabContainerCorner.Parent = TabContainer
 
 -- Content Area
 local ContentFrame = Instance.new("Frame")
-ContentFrame.Size = UDim2.new(1, -120, 1, -40)
-ContentFrame.Position = UDim2.new(0, 120, 0, 40)
+ContentFrame.Size = UDim2.new(1, -130, 1, -50)
+ContentFrame.Position = UDim2.new(0, 130, 0, 50)
 ContentFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
 ContentFrame.BorderSizePixel = 0
 ContentFrame.ZIndex = 2
@@ -270,16 +287,49 @@ SectionTitle1.Font = Enum.Font.GothamBold
 SectionTitle1.TextXAlignment = Enum.TextXAlignment.Left
 SectionTitle1.Parent = AimbotFrame
 
-local AimbotToggleData = createModernToggle("Aimbot: OFF", UDim2.new(0.05, 0, 0.12, 0), AimbotFrame)
-local TriggerbotToggleData = createModernToggle("Triggerbot: OFF", UDim2.new(0.05, 0, 0.22, 0), AimbotFrame)
-local KeyBindButton = createModernButton("Aim Key: RMB", UDim2.new(0.05, 0, 0.32, 0), AimbotFrame)
-local AimPartButton = createModernButton("Aim Part: Head", UDim2.new(0.05, 0, 0.42, 0), AimbotFrame)
-local VisibilityToggleData = createModernToggle("Visibility Check: ON", UDim2.new(0.05, 0, 0.52, 0), AimbotFrame)
+local AimbotToggleData = createModernToggle("Aimbot: OFF", UDim2.new(0.05, 0, 0.1, 0), AimbotFrame)
+local KeyBindButton = createModernButton("Aim Key: RMB", UDim2.new(0.05, 0, 0.2, 0), AimbotFrame)
+local AimPartButton = createModernButton("Aim Part: Head", UDim2.new(0.05, 0, 0.28, 0), AimbotFrame)
+local VisibilityToggleData = createModernToggle("Visibility Check: ON", UDim2.new(0.05, 0, 0.36, 0), AimbotFrame)
+
+-- Triggerbot Section
+local TriggerbotSectionTitle = Instance.new("TextLabel")
+TriggerbotSectionTitle.Size = UDim2.new(0.9, 0, 0, 25)
+TriggerbotSectionTitle.Position = UDim2.new(0.05, 0, 0.45, 0)
+TriggerbotSectionTitle.BackgroundTransparency = 1
+TriggerbotSectionTitle.Text = "TRIGGERBOT"
+TriggerbotSectionTitle.TextColor3 = Color3.fromRGB(200, 200, 220)
+TriggerbotSectionTitle.TextSize = 14
+TriggerbotSectionTitle.Font = Enum.Font.GothamBold
+TriggerbotSectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+TriggerbotSectionTitle.Parent = AimbotFrame
+
+local TriggerbotToggleData = createModernToggle("Triggerbot: OFF", UDim2.new(0.05, 0, 0.53, 0), AimbotFrame)
+
+-- Triggerbot Mode Buttons
+local TriggerbotModeFrame = Instance.new("Frame")
+TriggerbotModeFrame.Size = UDim2.new(0.9, 0, 0, 80)
+TriggerbotModeFrame.Position = UDim2.new(0.05, 0, 0.63, 0)
+TriggerbotModeFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+TriggerbotModeFrame.BorderSizePixel = 0
+TriggerbotModeFrame.Parent = AimbotFrame
+
+local TriggerbotModeCorner = Instance.new("UICorner")
+TriggerbotModeCorner.CornerRadius = UDim.new(0, 6)
+TriggerbotModeCorner.Parent = TriggerbotModeFrame
+
+local TapButton = createModernButton("Tap", UDim2.new(0.05, 0, 0.1, 0), TriggerbotModeFrame)
+local BurstButton = createModernButton("Burst", UDim2.new(0.35, 0, 0.1, 0), TriggerbotModeFrame)
+local RapidButton = createModernButton("Rapid", UDim2.new(0.65, 0, 0.1, 0), TriggerbotModeFrame)
+
+TapButton.Size = UDim2.new(0.3, 0, 0.5, 0)
+BurstButton.Size = UDim2.new(0.3, 0, 0.5, 0)
+RapidButton.Size = UDim2.new(0.3, 0, 0.5, 0)
 
 -- Enhanced Smoothness Slider
 local SmoothnessFrame = Instance.new("Frame")
 SmoothnessFrame.Size = UDim2.new(0.9, 0, 0, 60)
-SmoothnessFrame.Position = UDim2.new(0.05, 0, 0.65, 0)
+SmoothnessFrame.Position = UDim2.new(0.05, 0, 0.83, 0)
 SmoothnessFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 SmoothnessFrame.BorderSizePixel = 0
 SmoothnessFrame.Parent = AimbotFrame
@@ -411,7 +461,38 @@ local AimbotActive = false
 local CurrentTarget = nil
 local GUIHidden = false
 local ESPHighlights = {}
-local LastShotTime = 0
+local IsRapidFiring = false
+local BurstCount = 0
+local LastBurstTime = 0
+
+-- Make GUI draggable
+TitleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        IsDragging = true
+        DragStartPos = input.Position
+        GUIStartPos = MainFrame.Position
+    end
+end)
+
+TitleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        if IsDragging then
+            local delta = input.Position - DragStartPos
+            MainFrame.Position = UDim2.new(
+                GUIStartPos.X.Scale,
+                GUIStartPos.X.Offset + delta.X,
+                GUIStartPos.Y.Scale,
+                GUIStartPos.Y.Offset + delta.Y
+            )
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        IsDragging = false
+    end
+end)
 
 -- ESP Function (UNLIMITED RANGE)
 local function createESP(player)
@@ -545,7 +626,7 @@ local function smoothAim(targetPosition)
     camera.CFrame = newCFrame
 end
 
--- TRIGGERBOT FUNCTION (AUTO-SHOOT)
+-- TRIGGERBOT FUNCTION with different modes
 local function triggerbotShoot()
     if not TriggerbotEnabled then return end
     if not LocalPlayer.Character then return end
@@ -574,20 +655,71 @@ local function triggerbotShoot()
             if hitPlayer and isEnemy(hitPlayer) and humanoid.Health > 0 then
                 -- Check visibility if enabled
                 if VisibilityCheck and not isVisible(hitPart) then
+                    IsRapidFiring = false
+                    BurstCount = 0
                     return
                 end
                 
-                -- Check delay to prevent spamming
                 local currentTime = tick()
-                if currentTime - LastShotTime > TriggerbotDelay then
-                    -- Simulate mouse click (press and release)
+                
+                if TriggerbotMode == "Tap" then
+                    -- Tap mode: Single shot every 0.2 seconds
+                    if currentTime - LastShotTime > TriggerbotDelay then
+                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                        task.wait(0.05)
+                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                        LastShotTime = currentTime
+                    end
+                    
+                elseif TriggerbotMode == "Burst" then
+                    -- Burst mode: 3-4 shots in quick succession
+                    if BurstCount == 0 then
+                        -- Start new burst
+                        BurstCount = 1
+                        LastBurstTime = currentTime
+                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                        task.wait(0.05)
+                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                    elseif BurstCount < 4 and currentTime - LastBurstTime > 0.1 then
+                        -- Continue burst
+                        BurstCount = BurstCount + 1
+                        LastBurstTime = currentTime
+                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                        task.wait(0.05)
+                        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                    elseif BurstCount >= 4 and currentTime - LastBurstTime > TriggerbotDelay then
+                        -- Reset burst after delay
+                        BurstCount = 0
+                    end
+                    
+                elseif TriggerbotMode == "Rapid" then
+                    -- Rapid mode: Continuous firing
+                    if not IsRapidFiring then
+                        IsRapidFiring = true
+                    end
+                    
+                    -- Keep mouse button pressed
                     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
-                    task.wait(0.05) -- Very short press
-                    VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
-                    LastShotTime = currentTime
+                    return -- Don't release mouse button in rapid mode
+                    
                 end
+            else
+                -- Target is not valid, reset states
+                IsRapidFiring = false
+                BurstCount = 0
+                VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
             end
+        else
+            -- Not hitting an enemy, reset states
+            IsRapidFiring = false
+            BurstCount = 0
+            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
         end
+    else
+        -- Not hitting anything, reset states
+        IsRapidFiring = false
+        BurstCount = 0
+        VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
     end
 end
 
@@ -728,6 +860,39 @@ AimPartButton.MouseButton1Click:Connect(function()
     end
 end)
 
+-- Triggerbot Mode Button Handlers
+local function updateTriggerbotModeButtons()
+    TapButton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    BurstButton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    RapidButton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    
+    if TriggerbotMode == "Tap" then
+        TapButton.BackgroundColor3 = Color3.fromRGB(60, 100, 255)
+    elseif TriggerbotMode == "Burst" then
+        BurstButton.BackgroundColor3 = Color3.fromRGB(60, 100, 255)
+    elseif TriggerbotMode == "Rapid" then
+        RapidButton.BackgroundColor3 = Color3.fromRGB(60, 100, 255)
+    end
+end
+
+TapButton.MouseButton1Click:Connect(function()
+    TriggerbotMode = "Tap"
+    updateTriggerbotModeButtons()
+end)
+
+BurstButton.MouseButton1Click:Connect(function()
+    TriggerbotMode = "Burst"
+    updateTriggerbotModeButtons()
+end)
+
+RapidButton.MouseButton1Click:Connect(function()
+    TriggerbotMode = "Rapid"
+    updateTriggerbotModeButtons()
+end)
+
+-- Initialize triggerbot mode buttons
+updateTriggerbotModeButtons()
+
 -- Slider Functionality
 local smoothDragging = false
 SmoothnessButton.MouseButton1Down:Connect(function()
@@ -754,10 +919,10 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Key Binding
+-- Improved Key Binding (FIXED for RMB)
 KeyBindButton.MouseButton1Click:Connect(function()
     KeyListening = true
-    KeyBindButton.Text = "Press any key..."
+    KeyBindButton.Text = "Press any key or mouse button..."
     KeyBindButton.BackgroundColor3 = Color3.fromRGB(80, 80, 85)
 end)
 
@@ -765,15 +930,26 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
     if KeyListening then
+        KeyListening = false
+        
         if input.UserInputType == Enum.UserInputType.Keyboard then
             AimbotKey = input.KeyCode
             KeyBindButton.Text = "Aim Key: " .. tostring(input.KeyCode):gsub("Enum.KeyCode.", "")
+        elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+            AimbotKey = Enum.UserInputType.MouseButton1
+            KeyBindButton.Text = "Aim Key: LMB"
+        elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+            AimbotKey = Enum.UserInputType.MouseButton2
+            KeyBindButton.Text = "Aim Key: RMB"
+        elseif input.UserInputType == Enum.UserInputType.MouseButton3 then
+            AimbotKey = Enum.UserInputType.MouseButton3
+            KeyBindButton.Text = "Aim Key: MMB"
         else
             AimbotKey = input.UserInputType
             KeyBindButton.Text = "Aim Key: " .. tostring(input.UserInputType):gsub("Enum.UserInputType.", "")
         end
+        
         KeyBindButton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-        KeyListening = false
         return
     end
     
@@ -788,14 +964,36 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         toggleGUI()
     end
     
-    if (input.KeyCode == AimbotKey or input.UserInputType == AimbotKey) and AimbotEnabled then
+    -- Improved aimbot key detection
+    local isAimbotKey = false
+    if type(AimbotKey) == "userdata" then
+        if AimbotKey.EnumType == Enum.KeyCode then
+            isAimbotKey = input.KeyCode == AimbotKey
+        elseif AimbotKey.EnumType == Enum.UserInputType then
+            isAimbotKey = input.UserInputType == AimbotKey
+        end
+    end
+    
+    if isAimbotKey and AimbotEnabled then
         AimbotActive = true
         CurrentTarget = getClosestEnemy()
     end
 end)
 
 UserInputService.InputEnded:Connect(function(input, gameProcessed)
-    if (input.KeyCode == AimbotKey or input.UserInputType == AimbotKey) then
+    if gameProcessed then return end
+    
+    -- Improved aimbot key detection
+    local isAimbotKey = false
+    if type(AimbotKey) == "userdata" then
+        if AimbotKey.EnumType == Enum.KeyCode then
+            isAimbotKey = input.KeyCode == AimbotKey
+        elseif AimbotKey.EnumType == Enum.UserInputType then
+            isAimbotKey = input.UserInputType == AimbotKey
+        end
+    end
+    
+    if isAimbotKey then
         AimbotActive = false
         CurrentTarget = nil
     end
@@ -844,10 +1042,17 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Triggerbot Loop (AUTO-SHOOT)
+-- Triggerbot Loop
 RunService.Heartbeat:Connect(function()
     if TriggerbotEnabled and LocalPlayer.Character then
         triggerbotShoot()
+    else
+        -- Release mouse button if triggerbot is disabled
+        if IsRapidFiring then
+            VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            IsRapidFiring = false
+            BurstCount = 0
+        end
     end
 end)
 
@@ -857,6 +1062,8 @@ LocalPlayer.CharacterAdded:Connect(function()
     AimbotActive = false
     CurrentTarget = nil
     LastShotTime = 0
+    IsRapidFiring = false
+    BurstCount = 0
 end)
 
 LocalPlayer.CharacterRemoving:Connect(function()
@@ -864,6 +1071,8 @@ LocalPlayer.CharacterRemoving:Connect(function()
     AimbotActive = false
     CurrentTarget = nil
     LastShotTime = 0
+    IsRapidFiring = false
+    BurstCount = 0
 end)
 
 -- Update status bar with performance info
